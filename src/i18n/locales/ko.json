@@ -1,0 +1,47 @@
+{
+  "common": {
+    "save": "저장",
+    "cancel": "취소",
+    "delete": "삭제",
+    "edit": "편집",
+    "create": "생성",
+    "loading": "로딩 중...",
+    "error": "오류가 발생했습니다",
+    "confirm": "확인",
+    "search": "검색",
+    "back": "뒤로"
+  },
+  "dockerfile": {
+    "title": "Dockerfile 관리",
+    "create": "새 Dockerfile",
+    "editor": "Dockerfile 편집기",
+    "name": "Dockerfile 이름",
+    "namePlaceholder": "예: pytorch-cuda-base",
+    "content": "Dockerfile 내용",
+    "save": "Dockerfile 저장",
+    "unsupportedDirective": "MVP에서는 COPY/ADD 지시자를 지원하지 않습니다",
+    "list": "Dockerfile 목록",
+    "empty": "생성된 Dockerfile이 없습니다"
+  },
+  "build": {
+    "title": "이미지 빌드",
+    "run": "빌드 실행",
+    "targetImage": "대상 이미지",
+    "tag": "태그",
+    "tagPlaceholder": "예: v1.0.0",
+    "status": "빌드 상태",
+    "log": "빌드 로그",
+    "history": "빌드 히스토리",
+    "phase": {
+      "Pending": "대기 중",
+      "Running": "실행 중",
+      "Succeeded": "성공",
+      "Failed": "실패"
+    }
+  },
+  "nav": {
+    "dockerfiles": "Dockerfile",
+    "builds": "빌드",
+    "project": "프로젝트"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "confirm": "Confirm",
+    "search": "Search",
+    "back": "Back"
+  },
+  "dockerfile": {
+    "title": "Dockerfiles",
+    "create": "New Dockerfile",
+    "editor": "Dockerfile Editor",
+    "name": "Dockerfile Name",
+    "namePlaceholder": "e.g. pytorch-cuda-base",
+    "content": "Dockerfile Content",
+    "save": "Save Dockerfile",
+    "unsupportedDirective": "COPY/ADD directives are not supported in MVP",
+    "list": "Dockerfile List",
+    "empty": "No Dockerfiles created yet"
+  },
+  "build": {
+    "title": "Image Build",
+    "run": "Run Build",
+    "targetImage": "Target Image",
+    "tag": "Tag",
+    "tagPlaceholder": "e.g. v1.0.0",
+    "status": "Build Status",
+    "log": "Build Log",
+    "history": "Build History",
+    "phase": {
+      "Pending": "Pending",
+      "Running": "Running",
+      "Succeeded": "Succeeded",
+      "Failed": "Failed"
+    }
+  },
+  "nav": {
+    "dockerfiles": "Dockerfiles",
+    "builds": "Builds",
+    "project": "Project"
+  }
+}
