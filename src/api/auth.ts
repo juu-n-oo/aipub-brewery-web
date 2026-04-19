@@ -41,6 +41,7 @@ export async function getSelfSubjectReview(): Promise<SelfSubjectReview> {
   const response = await fetch('/api/v1alpha1/selfsubjectreviews', {
     method: 'POST',
     credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
   });
 
   if (!response.ok) {
