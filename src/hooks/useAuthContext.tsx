@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { k8sApi } from '@/api/k8s';
+import { getSelfSubjectReview } from '@/api/auth';
 import type { UserAuthorityReviewProject } from '@/types/k8s';
 
 interface AuthState {
@@ -36,12 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadUserAuthority() {
     try {
-      // 쿠키에서 username 추출 (AIPUB_ID_COOKIE의 JWT payload)
-      const username = getUsernameFromCookie();
-      if (!username) {
+      // selfsubjectreviews API로 인증 상태 및 username 조회
+      const self = await getSelfSubjectReview();
+      if (!self.isAuthenticated) {
         window.location.href = '/login';
         return;
       }
+      const username = self.username;
 
       const review = await k8sApi.getUserAuthority(username);
       setState({
@@ -66,23 +68,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
-}
-
-function getUsernameFromCookie(): string | null {
-  // dev 모드에서는 MSW mock 사용 — 쿠키 대신 고정 유저
-  if (import.meta.env.DEV) {
-    return 'joonwoo';
-  }
-
-  try {
-    const cookies = document.cookie.split(';').map((c) => c.trim());
-    const idCookie = cookies.find((c) => c.startsWith('AIPUB_ID_COOKIE='));
-    if (!idCookie) return null;
-
-    const token = idCookie.split('=')[1];
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.preferred_username || payload.sub || null;
-  } catch {
-    return null;
-  }
 }

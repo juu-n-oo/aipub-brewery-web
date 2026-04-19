@@ -30,6 +30,26 @@ export const handlers = [
     );
   }),
 
+  http.post('/api/v1alpha1/selfsubjectreviews', async () => {
+    await delay(200);
+    return HttpResponse.json({
+      isAuthenticated: true,
+      userType: 'OAUTH2',
+      userId: '10',
+      username: 'joonwoo',
+      roles: ['aipub-member'],
+      user: {
+        id: 'joonwoo',
+        username: 'joonwoo',
+        originUsername: 'joonwoo',
+        email: 'joonwoo@dummy.com',
+        firstName: 'Joonwoo',
+        lastName: 'Park',
+        enabled: true,
+      },
+    });
+  }),
+
   http.post('/api/v1alpha1/logout', async () => {
     await delay(200);
     return HttpResponse.json({ message: 'Logged out' });

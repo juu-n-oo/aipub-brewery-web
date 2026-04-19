@@ -23,14 +23,29 @@ export async function login(data: LoginRequest): Promise<void> {
   }
 }
 
-export async function checkAuth(): Promise<boolean> {
-  try {
-    // 인증 상태 확인을 위해 간단한 API 호출
-    const response = await fetch('/api/v1/dockerfiles?projectId=default', {
-      credentials: 'include',
-    });
-    return response.ok;
-  } catch {
-    return false;
+export interface SelfSubjectReview {
+  isAuthenticated: boolean;
+  username: string;
+  userId: string;
+  roles: string[];
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+export async function getSelfSubjectReview(): Promise<SelfSubjectReview> {
+  const response = await fetch('/api/v1alpha1/selfsubjectreviews', {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('인증 정보를 확인할 수 없습니다.');
   }
+
+  return response.json();
 }
