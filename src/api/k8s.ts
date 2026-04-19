@@ -9,7 +9,7 @@ import type {
   ImageTagsResponse,
 } from '@/types/k8s';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://aipub.cluster7.idc1.ten1010.io';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const K8S_PROXY = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
 
 async function k8sRequest<T>(path: string, options?: RequestInit): Promise<T> {
