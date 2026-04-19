@@ -42,6 +42,7 @@ export async function getSelfSubjectReview(): Promise<SelfSubjectReview> {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
 
   if (!response.ok) {
