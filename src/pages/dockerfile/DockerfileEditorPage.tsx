@@ -13,7 +13,7 @@ import {
 import { useDockerfile, useCreateDockerfile, useUpdateDockerfile } from '@/hooks/useDockerfiles';
 import { useRunBuild } from '@/hooks/useBuilds';
 import { useAuth } from '@/hooks/useAuthContext';
-import { useVolumes } from '@/hooks/useK8s';
+import { useProject, useVolumes } from '@/hooks/useK8s';
 import { validateDockerfile, type DockerfileWarning } from '@/lib/dockerfile-validator';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -165,8 +165,10 @@ export default function DockerfileEditorPage() {
   const updateMutation = useUpdateDockerfile();
   const runBuildMutation = useRunBuild();
   const { data: volumeList } = useVolumes(selectedProjectId);
+  const { data: projectData } = useProject(selectedProjectId);
 
   const volumes = volumeList?.items ?? [];
+  const imageHubs = projectData?.status?.allBoundImageHubs ?? [];
 
   const [content, setContent] = useState('');
   const [fields, setFields] = useState<DockerfileFields>({ ...defaultFields, instructions: [] });
@@ -178,6 +180,9 @@ export default function DockerfileEditorPage() {
   const [showAddInstr, setShowAddInstr] = useState(false);
   const [buildTag, setBuildTag] = useState('latest');
   const [buildImageName, setBuildImageName] = useState('');
+  const [selectedImageHub, setSelectedImageHub] = useState('');
+  const [buildContextVolume, setBuildContextVolume] = useState('');
+  const [buildContextSubPath, setBuildContextSubPath] = useState('');
   const [mode, setMode] = useState<'form' | 'editor'>('form');
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
@@ -198,15 +203,23 @@ export default function DockerfileEditorPage() {
       setValue('description', existing.description || '');
       setContent(existing.content);
       setSelectedProjectId(existing.project);
-      setBuildImageName(`${HARBOR_URL}/${existing.project}/${existing.name}`);
     }
   }, [existing, setValue]);
 
+  // imageHub 목록이 로드되면 첫 번째를 기본 선택
   useEffect(() => {
-    if (nameValue && !isEdit) {
-      setBuildImageName(`${HARBOR_URL}/${selectedProjectId}/${nameValue}`);
+    if (imageHubs.length > 0 && !selectedImageHub) {
+      setSelectedImageHub(imageHubs[0]);
     }
-  }, [nameValue, selectedProjectId, isEdit]);
+  }, [imageHubs, selectedImageHub]);
+
+  // imageHub 또는 이름 변경 시 buildImageName 갱신
+  useEffect(() => {
+    const name = existing?.name ?? nameValue;
+    if (selectedImageHub && name) {
+      setBuildImageName(`${HARBOR_URL}/${selectedImageHub}/${name}`);
+    }
+  }, [selectedImageHub, nameValue, existing?.name]);
 
   // Sync fields → content (form mode)
   useEffect(() => {
@@ -319,8 +332,18 @@ export default function DockerfileEditorPage() {
 
   const handleBuild = () => {
     if (dockerfileId === undefined) return;
+    // Volume 이름 → pvcName 변환
+    const selectedVol = volumes.find((v) => v.name === buildContextVolume);
+    const pvcName = selectedVol?.pvcName;
+
     runBuildMutation.mutate(
-      { dockerfileId, targetImage: buildImageName, tag: buildTag },
+      {
+        dockerfileId,
+        targetImage: buildImageName,
+        tag: buildTag,
+        ...(pvcName ? { buildContextPvc: pvcName } : {}),
+        ...(buildContextSubPath ? { buildContextSubPath } : {}),
+      },
       {
         onSuccess: (build) => {
           setShowBuildDialog(false);
@@ -330,6 +353,8 @@ export default function DockerfileEditorPage() {
     );
   };
 
+  const hasCopyInstruction = fields.instructions.some((i) => i.type === 'COPY_UPLOAD' || i.type === 'COPY_VOLUME')
+    || /^COPY\s/m.test(content);
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   if (isEdit && isLoading) {
@@ -591,14 +616,64 @@ export default function DockerfileEditorPage() {
             <DialogDescription>빌드할 이미지 이름과 태그를 입력하세요.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
+            {/* ImageHub 선택 */}
+            <div className="flex flex-col gap-1.5">
+              <Label>ImageHub</Label>
+              <div className="relative">
+                <select
+                  value={selectedImageHub}
+                  onChange={(e) => setSelectedImageHub(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-border-input bg-white px-3 py-1 text-sm appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] cursor-pointer"
+                >
+                  {imageHubs.map((hub) => (
+                    <option key={hub} value={hub}>{hub}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted pointer-events-none" />
+              </div>
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label>{t('build.targetImage')}</Label>
-              <Input value={buildImageName} onChange={(e) => setBuildImageName(e.target.value)} placeholder={`${HARBOR_URL}/project/image-name`} />
+              <Input value={buildImageName} onChange={(e) => setBuildImageName(e.target.value)} placeholder={`${HARBOR_URL}/image-hub/image-name`} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>{t('build.tag')}</Label>
               <Input value={buildTag} onChange={(e) => setBuildTag(e.target.value)} placeholder={t('build.tagPlaceholder')} />
             </div>
+
+            {/* 빌드 컨텍스트 (COPY 사용 시) */}
+            {hasCopyInstruction && (
+              <>
+                <hr className="border-border" />
+                <div className="flex flex-col gap-1.5">
+                  <Label>빌드 컨텍스트 Volume</Label>
+                  <p className="text-xs text-text-secondary">COPY 명령어에서 참조하는 파일이 있는 Volume을 선택하세요.</p>
+                  <div className="relative">
+                    <select
+                      value={buildContextVolume}
+                      onChange={(e) => setBuildContextVolume(e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-border-input bg-white px-3 py-1 text-sm appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] cursor-pointer"
+                    >
+                      <option value="">선택 안함</option>
+                      {volumes.map((v) => (
+                        <option key={v.name} value={v.name}>{v.name} ({v.pvcName})</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted pointer-events-none" />
+                  </div>
+                </div>
+                {buildContextVolume && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label>서브 경로 (선택)</Label>
+                    <Input
+                      value={buildContextSubPath}
+                      onChange={(e) => setBuildContextSubPath(e.target.value)}
+                      placeholder="예: /my-project (미지정 시 볼륨 루트)"
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBuildDialog(false)}>{t('common.cancel')}</Button>

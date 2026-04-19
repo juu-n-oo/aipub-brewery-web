@@ -19,4 +19,6 @@ export interface ImageBuildRequest {
   targetImage: string;
   tag: string;
   pushSecretRef?: string;
+  buildContextPvc?: string;
+  buildContextSubPath?: string;
 }
