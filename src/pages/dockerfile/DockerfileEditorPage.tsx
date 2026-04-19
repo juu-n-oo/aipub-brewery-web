@@ -90,9 +90,10 @@ function generateDockerfileContent(fields: DockerfileFields, _uploadedFiles?: Ma
         break;
       case 'COPY_VOLUME':
         if (instr.volumeName && instr.volumePath?.trim() && instr.volumeDest?.trim()) {
-          // Volume mount path — Kaniko에서 PVC를 마운트하여 사용
-          lines.push(`# Source: AIPub Volume "${instr.volumeName}" (${instr.volumePath})`);
-          lines.push(`COPY ${instr.volumePath.trim()} ${instr.volumeDest.trim()}`);
+          // PVC 루트 기준 상대 경로로 변환 (앞의 / 제거)
+          const relativePath = instr.volumePath.trim().replace(/^\/+/, '');
+          lines.push(`# Source: AIPub Volume "${instr.volumeName}"`);
+          lines.push(`COPY ${relativePath} ${instr.volumeDest.trim()}`);
           lines.push('');
         }
         break;
@@ -600,7 +601,14 @@ export default function DockerfileEditorPage() {
             Cancel
           </Button>
           {isEdit && (
-            <Button type="button" variant="outline" onClick={() => setShowBuildDialog(true)} disabled={warnings.length > 0}>
+            <Button type="button" variant="outline" onClick={() => {
+              // COPY_VOLUME에서 사용된 볼륨 자동 감지
+              const volInstr = fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName);
+              if (volInstr?.volumeName && !buildContextVolume) {
+                setBuildContextVolume(volInstr.volumeName);
+              }
+              setShowBuildDialog(true);
+            }} disabled={warnings.length > 0}>
               <Play className="h-4 w-4" /> 빌드 실행
             </Button>
           )}
