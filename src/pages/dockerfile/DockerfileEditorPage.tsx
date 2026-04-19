@@ -334,7 +334,14 @@ export default function DockerfileEditorPage() {
   const handleBuild = () => {
     if (dockerfileId === undefined) return;
     // Volume 이름 → pvcName 변환
-    const selectedVol = volumes.find((v) => v.name === buildContextVolume);
+    // 우선순위: 다이얼로그 선택 > COPY_VOLUME 명령어 > COPY 감지 시 첫 번째 볼륨
+    let volName = buildContextVolume
+      || fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName)?.volumeName
+      || '';
+    if (!volName && hasCopyInstruction && volumes.length > 0) {
+      volName = volumes[0].name;
+    }
+    const selectedVol = volumes.find((v) => v.name === volName);
     const pvcName = selectedVol?.pvcName;
 
     runBuildMutation.mutate(
@@ -602,10 +609,10 @@ export default function DockerfileEditorPage() {
           </Button>
           {isEdit && (
             <Button type="button" variant="outline" onClick={() => {
-              // COPY_VOLUME에서 사용된 볼륨 자동 감지
-              const volInstr = fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName);
-              if (volInstr?.volumeName && !buildContextVolume) {
-                setBuildContextVolume(volInstr.volumeName);
+              // COPY가 있고 볼륨 미선택 시 자동 감지
+              if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
+                const volInstr = fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName);
+                setBuildContextVolume(volInstr?.volumeName || volumes[0].name);
               }
               setShowBuildDialog(true);
             }} disabled={warnings.length > 0}>
