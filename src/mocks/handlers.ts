@@ -6,7 +6,6 @@ import type { ImageBuild } from '@/types/build';
 let dockerfiles = [...mockDockerfiles];
 let builds = [...mockBuilds];
 let nextDfId = 100;
-let nextBuildId = 100;
 
 export const handlers = [
   // ── Auth ──

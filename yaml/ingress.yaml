@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aipub-brewery-web
+  namespace: aipub
+  labels:
+    app.kubernetes.io/name: aipub-brewery-web
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  ingressClassName: lb1
+  tls:
+    - hosts:
+        - aipub-brewery.cluster7.idc1.ten1010.io
+      secretName: aipub-brewery-web-tls
+  rules:
+    - host: aipub-brewery.cluster7.idc1.ten1010.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aipub-brewery-web
+                port:
+                  number: 80

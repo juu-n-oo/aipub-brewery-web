@@ -1,4 +1,5 @@
-const LOGIN_URL = '/api/v1alpha1/login';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://aipub.cluster7.idc1.ten1010.io';
+const LOGIN_URL = `${API_BASE_URL}/api/v1alpha1/login`;
 
 export interface LoginRequest {
   username: string;
@@ -26,7 +27,7 @@ export async function login(data: LoginRequest): Promise<void> {
 export async function checkAuth(): Promise<boolean> {
   try {
     // 인증 상태 확인을 위해 간단한 API 호출
-    const response = await fetch('/api/v1/dockerfiles?projectId=default', {
+    const response = await fetch(`${API_BASE_URL}/api/v1/dockerfiles?projectId=default`, {
       credentials: 'include',
     });
     return response.ok;

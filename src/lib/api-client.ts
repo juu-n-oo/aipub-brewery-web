@@ -1,4 +1,4 @@
-const API_BASE = `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1`;
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'https://aipub.cluster7.idc1.ten1010.io'}/api/v1`;
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
