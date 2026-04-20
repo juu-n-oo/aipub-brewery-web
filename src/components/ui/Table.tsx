@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 const Table = forwardRef<HTMLTableElement, HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative overflow-x-auto rounded-md border border-table-border">
-      <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
+      <table ref={ref} className={cn('w-full caption-bottom text-base', className)} {...props} />
     </div>
   ),
 );
@@ -52,7 +52,7 @@ const TableHead = forwardRef<HTMLTableCellElement, ThHTMLAttributes<HTMLTableCel
     <th
       ref={ref}
       className={cn(
-        'h-10 px-4 text-left align-middle text-xs font-medium text-text-secondary',
+        'h-12 px-4 text-left align-middle text-sm font-semibold text-text-secondary',
         className,
       )}
       {...props}
@@ -63,7 +63,7 @@ TableHead.displayName = 'TableHead';
 
 const TableCell = forwardRef<HTMLTableCellElement, TdHTMLAttributes<HTMLTableCellElement>>(
   ({ className, ...props }, ref) => (
-    <td ref={ref} className={cn('px-4 py-3 align-middle text-sm', className)} {...props} />
+    <td ref={ref} className={cn('px-4 py-3.5 align-middle text-base', className)} {...props} />
   ),
 );
 TableCell.displayName = 'TableCell';

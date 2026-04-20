@@ -25,10 +25,10 @@ const phaseConfig: Record<BuildPhase, {
 
 // 빌드 단계 (GitHub Actions 스타일)
 const buildSteps = [
-  { key: 'Pending', label: '빌드 대기', desc: 'Pod 스케줄링 대기' },
+  { key: 'Pending', label: '빌드 대기', desc: '빌드 컨텍스트 구성 중' },
   { key: 'Preparing', label: '빌드 준비', desc: 'Dockerfile 및 빌드 컨텍스트 설정' },
-  { key: 'Building', label: '이미지 빌드', desc: 'Kaniko 기반 이미지 빌드 실행' },
-  { key: 'Push', label: '이미지 Push', desc: 'Harbor 레지스트리에 푸시' },
+  { key: 'Building', label: '이미지 빌드', desc: '이미지 빌드 실행' },
+  { key: 'Push', label: '이미지 Push', desc: 'ImageHub 이미지 push' },
 ];
 
 function getStepStatus(currentPhase: BuildPhase, stepKey: string): 'done' | 'active' | 'pending' | 'failed' {
@@ -80,7 +80,7 @@ export default function BuildDetailPage() {
     : build.startTime ? '진행 중...' : '-';
 
   return (
-    <div>
+    <div className="mx-auto w-[60%]">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -89,11 +89,11 @@ export default function BuildDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-text-primary">빌드 상세</h1>
-            <p className="text-xs text-text-secondary font-mono mt-0.5">{build.targetImage}</p>
+            <h1 className="text-2xl font-bold text-text-primary">빌드 상세</h1>
+            <p className="text-sm text-text-secondary font-mono mt-1">{build.targetImage}</p>
           </div>
         </div>
-        <Badge variant={phase.variant} className="gap-1.5 text-sm px-3 py-1">
+        <Badge variant={phase.variant} className="gap-1.5 text-base px-3.5 py-1.5">
           {phase.icon}
           {phase.label}
         </Badge>
@@ -104,8 +104,8 @@ export default function BuildDetailPage() {
         <div className="w-72 shrink-0 flex flex-col gap-4">
           {/* Build Steps (GitHub Actions style) */}
           <div className="rounded-lg border border-border bg-white">
-            <div className="px-4 py-3 border-b border-border">
-              <h3 className="text-sm font-bold text-text-primary">빌드 단계</h3>
+            <div className="px-4 py-3.5 border-b border-border">
+              <h3 className="text-base font-bold text-text-primary">빌드 단계</h3>
             </div>
             <div className="p-3">
               {buildSteps.map((step, idx) => {
@@ -122,13 +122,13 @@ export default function BuildDetailPage() {
                       )}
                     </div>
                     <div className="pb-4">
-                      <div className={`text-sm font-medium ${
+                      <div className={`text-base font-medium ${
                         status === 'active' ? 'text-primary' : status === 'done' ? 'text-success' : status === 'failed' ? 'text-error' : 'text-text-muted'
                       }`}>
                         {step.label}
-                        {status === 'active' && <Loader2 className="inline h-3 w-3 ml-1.5 animate-spin" />}
+                        {status === 'active' && <Loader2 className="inline h-3.5 w-3.5 ml-1.5 animate-spin" />}
                       </div>
-                      <div className="text-[10px] text-text-muted mt-0.5">{step.desc}</div>
+                      <div className="text-xs text-text-muted mt-1">{step.desc}</div>
                     </div>
                   </div>
                 );
@@ -138,26 +138,26 @@ export default function BuildDetailPage() {
 
           {/* Build Info */}
           <div className="rounded-lg border border-border bg-white p-4">
-            <h3 className="text-sm font-bold text-text-primary mb-3">빌드 정보</h3>
-            <div className="flex flex-col gap-2.5">
+            <h3 className="text-base font-bold text-text-primary mb-3">빌드 정보</h3>
+            <div className="flex flex-col gap-3">
               <InfoRow label="Project" value={build.namespace} />
               <InfoRow label="Owner" value={build.username} />
               <InfoRow label="생성 시간" value={formatDateTime(build.createdAt)} />
               <InfoRow label="소요 시간">
-                <span className="inline-flex items-center gap-1 text-xs text-text-primary">
-                  <Timer className="h-3 w-3 text-text-secondary" />{duration}
+                <span className="inline-flex items-center gap-1 text-sm text-text-primary">
+                  <Timer className="h-3.5 w-3.5 text-text-secondary" />{duration}
                 </span>
               </InfoRow>
               {build.imageDigest && (
                 <InfoRow label="Digest">
-                  <code className="text-[10px] font-mono bg-muted-bg px-1.5 py-0.5 rounded break-all">
+                  <code className="text-xs font-mono bg-muted-bg px-1.5 py-0.5 rounded break-all">
                     {build.imageDigest}
                   </code>
                 </InfoRow>
               )}
               {build.message && (
                 <InfoRow label="메시지">
-                  <span className="text-xs text-error">{build.message}</span>
+                  <span className="text-sm text-error">{build.message}</span>
                 </InfoRow>
               )}
             </div>
@@ -167,16 +167,16 @@ export default function BuildDetailPage() {
         {/* Right: Live Log */}
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-text-primary">{t('build.log')}</h3>
+            <h3 className="text-base font-bold text-text-primary">{t('build.log')}</h3>
             <div className="flex items-center gap-2">
               {isActive && connected && (
-                <span className="inline-flex items-center gap-1.5 text-[10px] text-success">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 text-xs text-success">
+                  <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
                   Live
                 </span>
               )}
               {isActive && !connected && streamDone && (
-                <span className="text-[10px] text-text-muted">스트림 완료</span>
+                <span className="text-xs text-text-muted">스트림 완료</span>
               )}
             </div>
           </div>
@@ -190,7 +190,7 @@ export default function BuildDetailPage() {
                   <Loader2 className="h-5 w-5 text-[#666] animate-spin" />
                 </div>
               ) : (
-                <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap">
+                <pre className="text-sm font-mono leading-relaxed whitespace-pre-wrap">
                   {logText.split('\n').map((line, i) => (
                     <LogLine key={i} lineNum={i + 1} text={line} />
                   ))}
@@ -248,8 +248,8 @@ function LogLine({ lineNum, text }: { lineNum: number; text: string }) {
 function InfoRow({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) {
   return (
     <div>
-      <span className="text-[10px] font-medium text-text-muted">{label}</span>
-      <div className="mt-0.5">{children ?? <span className="text-xs text-text-primary">{value}</span>}</div>
+      <span className="text-xs font-medium text-text-muted uppercase tracking-wide">{label}</span>
+      <div className="mt-1">{children ?? <span className="text-sm text-text-primary">{value}</span>}</div>
     </div>
   );
 }

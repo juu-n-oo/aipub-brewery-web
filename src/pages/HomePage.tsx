@@ -7,13 +7,13 @@ export default function HomePage() {
   const { username, projects, isAdmin } = useAuth();
 
   return (
-    <div>
+    <div className="mx-auto w-[60%]">
       {/* Welcome */}
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-text-primary mb-1">
+        <h1 className="text-2xl font-bold text-text-primary mb-1.5">
           환영합니다, {username}님
         </h1>
-        <p className="text-sm text-text-secondary">
+        <p className="text-base text-text-secondary">
           AIPub Brewery에서 Dockerfile을 작성하고 이미지를 빌드하세요.
         </p>
       </div>
@@ -46,22 +46,22 @@ export default function HomePage() {
       {/* Project Overview */}
       <div className="rounded-lg border border-border bg-white">
         <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-base font-bold text-text-primary">내 프로젝트</h2>
+          <h2 className="text-lg font-bold text-text-primary">내 프로젝트</h2>
         </div>
         <div className="divide-y divide-border">
           {projects.map((p) => (
-            <div key={p.name} className="px-5 py-3 flex items-center justify-between">
+            <div key={p.name} className="px-5 py-3.5 flex items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-text-primary">{p.name}</span>
-                <span className="ml-2 text-xs text-text-secondary bg-muted-bg px-2 py-0.5 rounded">
+                <span className="text-base font-medium text-text-primary">{p.name}</span>
+                <span className="ml-2 text-sm text-text-secondary bg-muted-bg px-2 py-0.5 rounded">
                   {p.role}
                 </span>
               </div>
               <Link
                 to={`/dockerfiles?projectId=${p.name}`}
-                className="text-xs text-text-link hover:underline flex items-center gap-1"
+                className="text-sm text-text-link hover:underline flex items-center gap-1"
               >
-                Dockerfiles <ArrowRight className="h-3 w-3" />
+                Dockerfiles <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           ))}
@@ -69,7 +69,7 @@ export default function HomePage() {
       </div>
 
       {isAdmin && (
-        <p className="mt-4 text-xs text-text-muted">
+        <p className="mt-4 text-sm text-text-muted">
           관리자 권한이 있습니다.
         </p>
       )}
@@ -93,12 +93,12 @@ function QuickActionCard({
   return (
     <div className="rounded-lg border border-border bg-white p-5 flex flex-col">
       <div className="mb-3">{icon}</div>
-      <h3 className="text-sm font-bold text-text-primary mb-1">{title}</h3>
-      <p className="text-xs text-text-secondary flex-1 mb-4">{description}</p>
+      <h3 className="text-base font-bold text-text-primary mb-1">{title}</h3>
+      <p className="text-sm text-text-secondary flex-1 mb-4">{description}</p>
       <Button variant="outline" size="sm" asChild className="self-start">
         <Link to={to}>
           {action}
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRight className="h-4 w-4" />
         </Link>
       </Button>
     </div>

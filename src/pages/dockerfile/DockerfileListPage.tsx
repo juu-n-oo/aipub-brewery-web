@@ -107,11 +107,11 @@ export default function DockerfileListPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-[60%]">
       {/* Page Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-bold text-text-primary">Dockerfiles</h1>
+          <h1 className="text-2xl font-bold text-text-primary">Dockerfiles</h1>
           {allDockerfiles.length > 0 && (
             <Badge variant="count">{allDockerfiles.length}</Badge>
           )}
@@ -129,7 +129,7 @@ export default function DockerfileListPage() {
                 }
                 setCurrentPage(1);
               }}
-              className="h-9 pl-3 pr-8 rounded-md border border-border-input bg-white text-sm appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] transition-all cursor-pointer"
+              className="h-10 pl-3.5 pr-9 rounded-md border border-border-input bg-white text-base appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] transition-all cursor-pointer"
             >
               <option value="">모든 프로젝트</option>
               {projectIds.map((pid) => (
@@ -162,7 +162,7 @@ export default function DockerfileListPage() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 pl-9 pr-3 w-48 rounded-md border border-border-input bg-white text-sm placeholder:text-text-muted outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] transition-all"
+              className="h-10 pl-9 pr-3 w-56 rounded-md border border-border-input bg-white text-base placeholder:text-text-muted outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] transition-all"
             />
           </div>
         </div>
@@ -191,25 +191,21 @@ export default function DockerfileListPage() {
                 <TableHead className="w-12">
                   <Checkbox checked={allSelected} onChange={toggleAll} />
                 </TableHead>
-                <TableHead className="w-16">No</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Owner</TableHead>
+                <TableHead>Creation Time</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Age</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paged.map((df, idx) => (
+              {paged.map((df) => (
                 <TableRow key={df.id}>
                   <TableCell>
                     <Checkbox
                       checked={selected.has(df.id)}
                       onChange={() => toggleOne(df.id)}
                     />
-                  </TableCell>
-                  <TableCell className="text-text-secondary">
-                    {(currentPage - 1) * rowsPerPage + idx + 1}
                   </TableCell>
                   <TableCell>
                     <Link
@@ -221,14 +217,14 @@ export default function DockerfileListPage() {
                   </TableCell>
                   <TableCell className="text-text-secondary">{df.project}</TableCell>
                   <TableCell className="text-text-secondary">{df.username}</TableCell>
+                  <TableCell className="text-text-secondary">
+                    {formatCreatedAt(df.createdAt)}
+                  </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-success" />
                       Available
                     </span>
-                  </TableCell>
-                  <TableCell className="text-text-secondary">
-                    {formatAge(df.updatedAt)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -236,7 +232,7 @@ export default function DockerfileListPage() {
           </Table>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between mt-3 text-sm text-text-secondary">
+          <div className="flex items-center justify-between mt-3 text-base text-text-secondary">
             <span>{selected.size} of {filtered.length} row(s) selected</span>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -244,7 +240,7 @@ export default function DockerfileListPage() {
                 <select
                   value={rowsPerPage}
                   onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                  className="h-8 rounded-md border border-border-input bg-white px-2 text-sm outline-none"
+                  className="h-9 rounded-md border border-border-input bg-white px-2 text-base outline-none"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -283,12 +279,8 @@ export default function DockerfileListPage() {
   );
 }
 
-function formatAge(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h`;
-  const mins = Math.floor((diff % 3600000) / 60000);
-  return `${mins}m`;
+function formatCreatedAt(dateStr: string): string {
+  const d = new Date(dateStr);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

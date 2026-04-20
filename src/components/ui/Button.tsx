@@ -12,10 +12,10 @@ const variants = {
 } as const;
 
 const sizes = {
-  default: 'h-9 px-4 py-2 text-sm',
-  sm: 'h-8 px-3 text-xs',
-  lg: 'h-10 px-6 text-sm',
-  icon: 'h-8 w-8',
+  default: 'h-10 px-5 py-2 text-base',
+  sm: 'h-9 px-4 text-sm',
+  lg: 'h-11 px-6 text-base',
+  icon: 'h-9 w-9',
 } as const;
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -30,7 +30,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         className={cn(
-          'inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all outline-none focus-visible:border-border-focus focus-visible:ring-primary/50 focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*="size-"])]:size-4 [&_svg]:shrink-0 shrink-0',
+          'inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all outline-none focus-visible:border-border-focus focus-visible:ring-primary/50 focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*="size-"])]:size-4 [&_svg]:shrink-0 shrink-0',
           variants[variant],
           sizes[size],
           className,

@@ -71,17 +71,17 @@ export default function BuildListPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-[60%]">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-bold text-text-primary">{t('build.title')}</h1>
+          <h1 className="text-2xl font-bold text-text-primary">{t('build.title')}</h1>
           {allBuilds.length > 0 && <Badge variant="count">{allBuilds.length}</Badge>}
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
             <select value={selectedProjectId}
               onChange={(e) => { e.target.value ? setSearchParams({ projectId: e.target.value }) : setSearchParams({}); setCurrentPage(1); }}
-              className="h-9 pl-3 pr-8 rounded-md border border-border-input bg-white text-sm appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] cursor-pointer">
+              className="h-10 pl-3.5 pr-9 rounded-md border border-border-input bg-white text-base appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] cursor-pointer">
               <option value="">모든 프로젝트</option>
               {projectIds.map((pid) => <option key={pid} value={pid}>{pid}</option>)}
             </select>
@@ -91,7 +91,7 @@ export default function BuildListPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
             <input type="text" placeholder={t('common.search')} value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              className="h-9 pl-9 pr-3 w-48 rounded-md border border-border-input bg-white text-sm placeholder:text-text-muted outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] transition-all" />
+              className="h-10 pl-9 pr-3 w-56 rounded-md border border-border-input bg-white text-base placeholder:text-text-muted outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] transition-all" />
           </div>
         </div>
       </div>
@@ -140,13 +140,13 @@ export default function BuildListPage() {
             </TableBody>
           </Table>
 
-          <div className="flex items-center justify-between mt-3 text-sm text-text-secondary">
+          <div className="flex items-center justify-between mt-3 text-base text-text-secondary">
             <span>{selected.size} of {filtered.length} row(s) selected</span>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span>Rows per page</span>
                 <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                  className="h-8 rounded-md border border-border-input bg-white px-2 text-sm outline-none">
+                  className="h-9 rounded-md border border-border-input bg-white px-2 text-base outline-none">
                   <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>
                 </select>
               </div>

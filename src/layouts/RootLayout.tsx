@@ -17,7 +17,7 @@ function Breadcrumb() {
   };
 
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-text-secondary">
+    <nav className="flex items-center gap-1.5 text-base text-text-secondary">
       <NavLink to="/" className="hover:text-text-primary transition-colors">
         <svg
           className="h-4 w-4"
@@ -166,7 +166,7 @@ function InnerLayout() {
           className={`${sidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0 overflow-hidden'} border-r border-sidebar-border bg-sidebar-bg shrink-0 flex flex-col pt-5 overflow-y-auto transition-all duration-200`}
         >
           <div className="px-4 mb-2">
-            <span className="text-[11px] font-medium text-sidebar-section tracking-wider uppercase">
+            <span className="text-xs font-medium text-sidebar-section tracking-wider uppercase">
               Brewery
             </span>
           </div>
@@ -236,7 +236,7 @@ function SidebarLink({
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-lg transition-all ${
+        `flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-lg transition-all ${
           isActive
             ? 'bg-sidebar-active-bg/40 text-primary font-medium'
             : 'text-sidebar-text hover:bg-sidebar-hover'
