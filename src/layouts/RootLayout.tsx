@@ -109,15 +109,13 @@ function InnerLayout() {
       {/* GNB Header */}
       <header className="h-[var(--header-height)] border-b border-border flex items-center justify-between px-4 bg-header-bg shrink-0 z-10">
         <div className="flex items-center gap-2.5">
-          <NavLink to="/" className="flex items-center gap-1.5">
-            <svg className="h-7 w-7" viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="14" fill="#2e7bff" />
-              <path
-                d="M16 6c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10S21.52 6 16 6zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L13 19v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H12v-2h2c.55 0 1-.45 1-1v-2h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
-                fill="white"
-              />
+          <NavLink to="/" className="flex items-center gap-2">
+            <svg className="h-7 w-7" viewBox="0 0 64 64" fill="none">
+              <circle cx="20" cy="32" r="12" fill="#FF9500" />
+              <path d="M28 20c6.627 0 12 5.373 12 12s-5.373 12-12 12" stroke="#2e7bff" strokeWidth="6" strokeLinecap="round" />
+              <circle cx="44" cy="32" r="8" fill="#2e7bff" />
             </svg>
-            <span className="text-[17px] font-bold text-text-primary tracking-tight">AIPub</span>
+            <span className="text-[17px] font-bold text-text-primary tracking-tight">AIPub Brewery</span>
           </NavLink>
         </div>
         <div className="flex items-center gap-0.5">
