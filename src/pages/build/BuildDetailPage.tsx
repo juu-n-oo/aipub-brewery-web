@@ -58,7 +58,9 @@ export default function BuildDetailPage() {
   // 폴링 기반 로그 (완료된 빌드)
   const { data: staticLogs } = useBuildLogs(namespace, name);
 
-  const logText = isActive ? streamText : (staticLogs || '');
+  // 우선순위: 라이브 동안 수집된 SSE 라인 → 정적 로그 fetch 결과
+  // (완료된 빌드에 바로 진입한 경우 streamText는 비어있고 staticLogs가 채워짐)
+  const logText = streamText || staticLogs || '';
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   // 로그 자동 스크롤

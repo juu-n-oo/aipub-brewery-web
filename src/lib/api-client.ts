@@ -2,10 +2,11 @@ const API_BASE = `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1`;
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
+  responseType?: 'json' | 'text';
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { params, ...init } = options;
+  const { params, responseType = 'json', ...init } = options;
 
   let url = `${API_BASE}${endpoint}`;
   if (params) {
@@ -34,6 +35,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  if (responseType === 'text') {
+    return (await response.text()) as T;
   }
 
   return response.json() as Promise<T>;

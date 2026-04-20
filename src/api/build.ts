@@ -13,5 +13,5 @@ export const buildApi = {
   run: (data: ImageBuildRequest) => apiClient.post<ImageBuild>(BASE, data),
 
   getLogs: (namespace: string, name: string) =>
-    apiClient.get<string>(`${BASE}/${namespace}/${name}/logs`),
+    apiClient.get<string>(`${BASE}/${namespace}/${name}/logs`, { responseType: 'text' }),
 };
