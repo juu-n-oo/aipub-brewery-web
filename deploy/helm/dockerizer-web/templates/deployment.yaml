@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "aipub-brewery-web.fullname" . }}
+  name: {{ include "dockerizer-web.fullname" . }}
   labels:
-    {{- include "aipub-brewery-web.labels" . | nindent 4 }}
+    {{- include "dockerizer-web.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "aipub-brewery-web.selectorLabels" . | nindent 6 }}
+      {{- include "dockerizer-web.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "aipub-brewery-web.selectorLabels" . | nindent 8 }}
+        {{- include "dockerizer-web.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

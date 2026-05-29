@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: aipub-brewery-web
+  name: dockerizer-web
   namespace: aipub
   labels:
-    app.kubernetes.io/name: aipub-brewery-web
+    app.kubernetes.io/name: dockerizer-web
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: aipub-brewery-web
+      app.kubernetes.io/name: dockerizer-web
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: aipub-brewery-web
+        app.kubernetes.io/name: dockerizer-web
     spec:
       containers:
-        - name: aipub-brewery-web
+        - name: dockerizer-web
           image: aipub-harbor.cluster7.idc1.ten1010.io/aipub/brewery-web:latest
           imagePullPolicy: Always
           ports:
@@ -49,4 +49,4 @@ spec:
       volumes:
         - name: nginx-config
           configMap:
-            name: aipub-brewery-web-nginx
+            name: dockerizer-web-nginx

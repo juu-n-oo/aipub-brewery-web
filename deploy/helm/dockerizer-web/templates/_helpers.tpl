@@ -1,8 +1,8 @@
-{{- define "aipub-brewery-web.name" -}}
+{{- define "dockerizer-web.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "aipub-brewery-web.fullname" -}}
+{{- define "dockerizer-web.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -15,13 +15,13 @@
 {{- end }}
 {{- end }}
 
-{{- define "aipub-brewery-web.labels" -}}
+{{- define "dockerizer-web.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-{{ include "aipub-brewery-web.selectorLabels" . }}
+{{ include "dockerizer-web.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{- define "aipub-brewery-web.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "aipub-brewery-web.name" . }}
+{{- define "dockerizer-web.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "dockerizer-web.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

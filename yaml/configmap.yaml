@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: aipub-brewery-web-nginx
+  name: dockerizer-web-nginx
   namespace: aipub
   labels:
-    app.kubernetes.io/name: aipub-brewery-web
+    app.kubernetes.io/name: dockerizer-web
 data:
   default.conf: |
     server {

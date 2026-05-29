@@ -14,7 +14,7 @@ export default function HomePage() {
           환영합니다, {username}님
         </h1>
         <p className="text-base text-text-secondary">
-          AIPub Brewery에서 Dockerfile을 작성하고 이미지를 빌드하세요.
+          Dockerizer에서 Dockerfile을 작성하고 이미지를 빌드하세요.
         </p>
       </div>
 

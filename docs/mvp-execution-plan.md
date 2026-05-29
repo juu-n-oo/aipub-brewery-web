@@ -1,7 +1,7 @@
-# AIPub Brewery Web — MVP 실행계획 & 개발 현황
+# Dockerizer Web — MVP 실행계획 & 개발 현황
 
 > 최종 업데이트: 2026-04-20
-> 프로젝트: aipub-brewery-web
+> 프로젝트: dockerizer-web
 > 목표: 웹 기반 Dockerfile 편집 → 저장 → 이미지 빌드 → 결과 확인 E2E 플로우 구현
 
 ---
@@ -246,7 +246,7 @@ SSE 포맷: `data: <line>\n\n`, 종료 이벤트는 `event: done\ndata: [DONE]\n
 
 ### Phase 8: UX 개선 및 시각 사이즈 정비 — ✅ 완료 (2026-04-20)
 
-- **로그인 페이지**: 좌 브랜딩 + 우 로그인 카드를 `max-w-6xl`로 감싸 중앙 정렬. 로고/텍스트/입력 사이즈 1.5배 확대 (`AIPub` → `AIPub Brewery`)
+- **로그인 페이지**: 좌 브랜딩 + 우 로그인 카드를 `max-w-6xl`로 감싸 중앙 정렬. 로고/텍스트/입력 사이즈 1.5배 확대 (`AIPub` → `Dockerizer`)
 
 - **페이지 중앙 정렬**: HomePage / DockerfileListPage / BuildListPage / BuildDetailPage에 `mx-auto w-[60%]` 적용. DockerfileEditorPage는 2컬럼 레이아웃 특성상 `mx-auto w-full max-w-[1400px]`
 

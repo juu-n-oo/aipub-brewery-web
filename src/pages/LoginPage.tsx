@@ -56,7 +56,7 @@ export default function LoginPage() {
               <path d="M28 20c6.627 0 12 5.373 12 12s-5.373 12-12 12" stroke="#2e7bff" strokeWidth="6" strokeLinecap="round" />
               <circle cx="44" cy="32" r="8" fill="#2e7bff" />
             </svg>
-            <span className="text-6xl font-bold text-text-primary tracking-tight">AIPub Brewery</span>
+            <span className="text-6xl font-bold text-text-primary tracking-tight">Dockerizer</span>
           </div>
 
           <h2 className="text-4xl font-bold text-text-primary leading-snug text-center mb-3">
@@ -65,7 +65,7 @@ export default function LoginPage() {
           </h2>
 
           <p className="text-base text-text-secondary mt-6">
-            AIPub Brewery 사이트는 크롬 브라우저 사용을 권장합니다.
+            Dockerizer 사이트는 크롬 브라우저 사용을 권장합니다.
           </p>
           <p className="text-sm text-text-muted mt-1.5">©AIPub, TEN Inc</p>
         </div>

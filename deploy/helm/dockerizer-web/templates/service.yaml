@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "aipub-brewery-web.fullname" . }}
+  name: {{ include "dockerizer-web.fullname" . }}
   labels:
-    {{- include "aipub-brewery-web.labels" . | nindent 4 }}
+    {{- include "dockerizer-web.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -12,4 +12,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "aipub-brewery-web.selectorLabels" . | nindent 4 }}
+    {{- include "dockerizer-web.selectorLabels" . | nindent 4 }}

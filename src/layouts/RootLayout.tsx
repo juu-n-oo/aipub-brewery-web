@@ -115,7 +115,7 @@ function InnerLayout() {
               <path d="M28 20c6.627 0 12 5.373 12 12s-5.373 12-12 12" stroke="#2e7bff" strokeWidth="6" strokeLinecap="round" />
               <circle cx="44" cy="32" r="8" fill="#2e7bff" />
             </svg>
-            <span className="text-[17px] font-bold text-text-primary tracking-tight">AIPub Brewery</span>
+            <span className="text-[17px] font-bold text-text-primary tracking-tight">Dockerizer</span>
           </NavLink>
         </div>
         <div className="flex items-center gap-0.5">
@@ -165,7 +165,7 @@ function InnerLayout() {
         >
           <div className="px-4 mb-2">
             <span className="text-xs font-medium text-sidebar-section tracking-wider uppercase">
-              Brewery
+              Dockerizer
             </span>
           </div>
           <nav className="flex flex-col gap-0.5 px-2 mb-6">
