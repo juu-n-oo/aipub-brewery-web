@@ -31,9 +31,14 @@ fi
 # Command Line Arguments
 #==============================================================================
 SKIP_CONFIRMATION=false
+BUILD_IMAGES=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --build)
+            BUILD_IMAGES=true
+            shift
+            ;;
         --skip-confirmation)
             SKIP_CONFIRMATION=true
             shift
@@ -47,6 +52,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --config <file>          Specify configuration JSON file"
+            echo "  --build                  Build and push Docker image before deploying"
             echo "  --skip-confirmation      Skip deployment confirmation prompts"
             echo "  -h, --help              Show this help message"
             exit 0
@@ -207,6 +213,27 @@ if [ "$SKIP_CONFIRMATION" = false ]; then
     log_info "You will be prompted to confirm deployment."
     log_info "Tip: Use --skip-confirmation to deploy without prompts"
     log_info ""
+fi
+
+#==============================================================================
+# Image Build & Push (optional)
+#==============================================================================
+if [ "$BUILD_IMAGES" = true ]; then
+    log_step "Building and pushing Docker image"
+
+    check_command docker
+
+    WEB_IMAGE_FULL="${WEB_IMAGE}:${WEB_TAG}"
+
+    log_info "Building image: ${WEB_IMAGE_FULL}"
+    sudo docker build --platform linux/amd64 \
+      -t "${WEB_IMAGE_FULL}" \
+      -f "${SCRIPT_DIR}/../Dockerfile" \
+      "${SCRIPT_DIR}/.."
+
+    log_info "Pushing image..."
+    sudo docker push "${WEB_IMAGE_FULL}"
+    log_success "Image built and pushed"
 fi
 
 #==============================================================================
