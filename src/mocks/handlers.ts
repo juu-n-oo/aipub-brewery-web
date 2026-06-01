@@ -189,7 +189,7 @@ export const handlers = [
 
   // ── Volume 목록 (Backend API) ──
 
-  http.get('/api/v1/volumes/:ns', async ({ params }) => {
+  http.get('/api/v1alpha1/volumes/:ns', async ({ params }) => {
     await delay(200);
     const ns = params.ns as string;
     const volumeMap: Record<string, object[]> = {
@@ -206,7 +206,7 @@ export const handlers = [
 
   // ── Volume 파일 브라우저 (Backend API) ──
 
-  http.get('/api/v1/volumes/:ns/:name/browse', async ({ params, request }) => {
+  http.get('/api/v1alpha1/volumes/:ns/:name/browse', async ({ params, request }) => {
     await delay(300);
     const ns = params.ns as string;
     const name = params.name as string;
@@ -281,7 +281,7 @@ export const handlers = [
 
   // ── External Registry: NGC ──
 
-  http.get('/api/v1/registries/ngc/images', async ({ request }) => {
+  http.get('/api/v1alpha1/registries/ngc/images', async ({ request }) => {
     await delay(500);
     const url = new URL(request.url);
     const q = (url.searchParams.get('query') || '').toLowerCase();
@@ -303,7 +303,7 @@ export const handlers = [
     return HttpResponse.json({ images: filtered, totalCount: filtered.length });
   }),
 
-  http.get('/api/v1/registries/ngc/images/:org/:repo/tags', async ({ params }) => {
+  http.get('/api/v1alpha1/registries/ngc/images/:org/:repo/tags', async ({ params }) => {
     await delay(300);
     const org = params.org as string;
     const repo = params.repo as string;
@@ -323,7 +323,7 @@ export const handlers = [
 
   // ── External Registry: HuggingFace ──
 
-  http.get('/api/v1/registries/huggingface/images', async ({ request }) => {
+  http.get('/api/v1alpha1/registries/huggingface/images', async ({ request }) => {
     await delay(500);
     const url = new URL(request.url);
     const q = (url.searchParams.get('query') || '').toLowerCase();
@@ -344,7 +344,7 @@ export const handlers = [
     return HttpResponse.json({ images: filtered, totalCount: filtered.length });
   }),
 
-  http.get('/api/v1/registries/huggingface/images/:repo/tags', async ({ params }) => {
+  http.get('/api/v1alpha1/registries/huggingface/images/:repo/tags', async ({ params }) => {
     await delay(300);
     const repo = params.repo as string;
     const tagMap: Record<string, string[]> = {
@@ -361,7 +361,7 @@ export const handlers = [
 
   // ── Dockerfile CRUD ──
 
-  http.get('/api/v1/dockerfiles', async ({ request }) => {
+  http.get('/api/v1alpha1/dockerfiles', async ({ request }) => {
     await delay(300);
     const url = new URL(request.url);
     const project = url.searchParams.get('project');
@@ -371,7 +371,7 @@ export const handlers = [
     return HttpResponse.json(filtered);
   }),
 
-  http.get('/api/v1/dockerfiles/:id', async ({ params }) => {
+  http.get('/api/v1alpha1/dockerfiles/:id', async ({ params }) => {
     await delay(200);
     const id = Number(params.id);
     const df = dockerfiles.find((d) => d.id === id);
@@ -379,7 +379,7 @@ export const handlers = [
     return HttpResponse.json(df);
   }),
 
-  http.post('/api/v1/dockerfiles', async ({ request }) => {
+  http.post('/api/v1alpha1/dockerfiles', async ({ request }) => {
     await delay(400);
     const body = (await request.json()) as { project: string; username: string; name: string; description?: string; content: string };
 
@@ -398,7 +398,7 @@ export const handlers = [
     return HttpResponse.json(newDf, { status: 201 });
   }),
 
-  http.put('/api/v1/dockerfiles/:id', async ({ params, request }) => {
+  http.put('/api/v1alpha1/dockerfiles/:id', async ({ params, request }) => {
     await delay(400);
     const id = Number(params.id);
     const body = (await request.json()) as { name?: string; description?: string; content: string };
@@ -413,7 +413,7 @@ export const handlers = [
     return HttpResponse.json(dockerfiles[idx]);
   }),
 
-  http.delete('/api/v1/dockerfiles/:id', async ({ params }) => {
+  http.delete('/api/v1alpha1/dockerfiles/:id', async ({ params }) => {
     await delay(300);
     const id = Number(params.id);
     const idx = dockerfiles.findIndex((d) => d.id === id);
@@ -424,7 +424,7 @@ export const handlers = [
 
   // ── BuildContextFile ──
 
-  http.get('/api/v1/dockerfiles/:dockerfileId/files', async ({ params }) => {
+  http.get('/api/v1alpha1/dockerfiles/:dockerfileId/files', async ({ params }) => {
     await delay(200);
     const id = Number(params.dockerfileId);
     const df = dockerfiles.find((d) => d.id === id);
@@ -432,7 +432,7 @@ export const handlers = [
     return HttpResponse.json(df.contextFiles ?? []);
   }),
 
-  http.post('/api/v1/dockerfiles/:dockerfileId/files', async ({ params, request }) => {
+  http.post('/api/v1alpha1/dockerfiles/:dockerfileId/files', async ({ params, request }) => {
     await delay(500);
     const id = Number(params.dockerfileId);
     const df = dockerfiles.find((d) => d.id === id);
@@ -455,7 +455,7 @@ export const handlers = [
     return HttpResponse.json(fileResponse, { status: 201 });
   }),
 
-  http.delete('/api/v1/dockerfiles/:dockerfileId/files/:fileId', async ({ params }) => {
+  http.delete('/api/v1alpha1/dockerfiles/:dockerfileId/files/:fileId', async ({ params }) => {
     await delay(300);
     const dfId = Number(params.dockerfileId);
     const fileId = Number(params.fileId);
@@ -469,7 +469,7 @@ export const handlers = [
 
   // ── Build API ──
 
-  http.get('/api/v1/builds', async ({ request }) => {
+  http.get('/api/v1alpha1/builds', async ({ request }) => {
     await delay(300);
     const url = new URL(request.url);
     const project = url.searchParams.get('project');
@@ -477,7 +477,7 @@ export const handlers = [
     return HttpResponse.json(filtered);
   }),
 
-  http.get('/api/v1/builds/:ns/:name', async ({ params }) => {
+  http.get('/api/v1alpha1/builds/:ns/:name', async ({ params }) => {
     await delay(200);
     const ns = params.ns as string;
     const name = params.name as string;
@@ -488,7 +488,7 @@ export const handlers = [
     return HttpResponse.json(build);
   }),
 
-  http.post('/api/v1/builds', async ({ request }) => {
+  http.post('/api/v1alpha1/builds', async ({ request }) => {
     await delay(500);
     const body = (await request.json()) as {
       dockerfileId: number;
@@ -536,7 +536,7 @@ export const handlers = [
     return HttpResponse.json(newBuild, { status: 202 });
   }),
 
-  http.get('/api/v1/builds/:ns/:name/logs', async ({ params }) => {
+  http.get('/api/v1alpha1/builds/:ns/:name/logs', async ({ params }) => {
     await delay(200);
     const ns = params.ns as string;
     const name = params.name as string;
@@ -550,7 +550,7 @@ export const handlers = [
   }),
 
   // SSE 빌드 로그 스트리밍
-  http.get('/api/v1/builds/:ns/:name/logs/stream', ({ params }) => {
+  http.get('/api/v1alpha1/builds/:ns/:name/logs/stream', ({ params }) => {
     const ns = params.ns as string;
     const name = params.name as string;
     const build = builds.find((b) => b.namespace === ns && b.name === name);

@@ -67,7 +67,7 @@ export function useBuildLogStream(namespace: string, name: string, enabled: bool
   const connect = useCallback(() => {
     if (!namespace || !name || !enabled) return;
 
-    const es = new EventSource(`${API_BASE_URL}/api/v1/builds/${namespace}/${name}/logs/stream`);
+    const es = new EventSource(`${API_BASE_URL}/api/v1alpha1/builds/${namespace}/${name}/logs/stream`);
     esRef.current = es;
     setConnected(true);
     setDone(false);
