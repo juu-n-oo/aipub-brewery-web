@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: aipub-harbor.cluster7.idc1.ten1010.io/aipub/brewery-web
