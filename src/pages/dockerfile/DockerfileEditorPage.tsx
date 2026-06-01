@@ -23,6 +23,7 @@ import { useDockerfile, useCreateDockerfile, useUpdateDockerfile } from '@/hooks
 import { useRunBuild } from '@/hooks/useBuilds';
 import { useAuth } from '@/hooks/useAuthContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/hooks/useToast';
 import { useProject, useVolumes } from '@/hooks/useK8s';
 import { validateDockerfile, type DockerfileWarning } from '@/lib/dockerfile-validator';
 import { Button } from '@/components/ui/Button';
@@ -156,6 +157,26 @@ function generateDockerfileContent(
   return lines.join('\n') + '\n';
 }
 
+/* ── Extract base image from Dockerfile content ── */
+
+// 첫 번째 유효한 `FROM <image>` 라인에서 베이스 이미지 ref 를 추출한다.
+// 주석(#) / 빈 줄은 건너뛰고, `FROM --platform=... image AS stage` 형태에서
+// 플래그와 `AS <stage>` 별칭을 제외한 이미지 토큰만 반환한다. 없으면 ''.
+function extractBaseImage(content: string): string {
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const match = /^FROM\s+(.+)$/i.exec(line);
+    if (!match) continue;
+    const tokens = match[1].trim().split(/\s+/);
+    for (const token of tokens) {
+      if (token.startsWith('--')) continue; // --platform 등 플래그 무시
+      return token; // 첫 번째 비-플래그 토큰이 이미지 ref (이후 AS stage 는 무시)
+    }
+  }
+  return '';
+}
+
 /* ── Form Schema ── */
 
 const dockerfileSchema = z.object({
@@ -212,6 +233,7 @@ export default function DockerfileEditorPage() {
   const [searchParams] = useSearchParams();
   const { username, projects } = useAuth();
   const { theme } = useTheme();
+  const { toast } = useToast();
   const monacoTheme = theme === 'dark' ? 'vs-dark' : 'vs-light';
   const dockerfileId = idParam ? Number(idParam) : undefined;
   const isEdit = dockerfileId !== undefined;
@@ -242,8 +264,16 @@ export default function DockerfileEditorPage() {
   const [selectedImageHub, setSelectedImageHub] = useState('');
   const [buildContextVolume, setBuildContextVolume] = useState('');
   const [buildContextSubPath, setBuildContextSubPath] = useState('');
-  const [mode, setMode] = useState<'form' | 'editor'>('form');
+  // "생성 후 빌드" 의도 기억: true 이면 빌드 다이얼로그 확인 시 생성→빌드를 연속 수행한다.
+  const [buildAfterCreate, setBuildAfterCreate] = useState(false);
+  // 편집(EDIT) 진입 시에는 기존 content 를 그대로 보존하기 위해 에디터 모드로 시작한다.
+  // (form 모드는 fields → content 동기화가 일어나 본문이 덮어써질 수 있음)
+  const [mode, setMode] = useState<'form' | 'editor'>(isEdit ? 'editor' : 'form');
   const [baseImageError, setBaseImageError] = useState('');
+  // 초기 하이드레이션(EDIT 시 기존 데이터 주입)이 끝났는지 추적한다.
+  // 이 플래그가 false 인 동안 form↔content 동기화 effect 가 실행되지 않도록 막아
+  // "수정 화면을 열고 아무것도 건드리지 않은 채 저장하면 content 가 그대로" 인 불변식을 보장한다.
+  const didInitRef = useRef(false);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -253,6 +283,8 @@ export default function DockerfileEditorPage() {
     handleSubmit,
     setValue,
     watch,
+    getValues,
+    trigger,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(dockerfileSchema),
@@ -267,8 +299,18 @@ export default function DockerfileEditorPage() {
       setValue('description', existing.description || '');
       setContent(existing.content);
       setSelectedProjectId(existing.project);
+      // 베이스 이미지 복원: 서버가 내려준 baseImage 우선, 없으면 content 에서 파싱.
+      const restoredBaseImage = existing.baseImage || extractBaseImage(existing.content);
+      setFields((prev) => ({ ...prev, baseImage: restoredBaseImage }));
+      // 하이드레이션 완료 표시: 이 시점 이후의 fields 변경만 content 에 반영한다.
+      didInitRef.current = true;
     }
   }, [existing, setValue]);
+
+  // CREATE 모드에서는 주입할 기존 데이터가 없으므로 마운트 직후 동기화를 활성화한다.
+  useEffect(() => {
+    if (!isEdit) didInitRef.current = true;
+  }, [isEdit]);
 
   // imageHub 목록이 로드되면 첫 번째를 기본 선택
   useEffect(() => {
@@ -287,6 +329,8 @@ export default function DockerfileEditorPage() {
 
   // Sync fields → content (form mode)
   useEffect(() => {
+    // 초기 하이드레이션 전에는 동기화하지 않는다. (EDIT 시 기존 content 가 덮어써지는 것을 방지)
+    if (!didInitRef.current) return;
     if (mode === 'form') {
       const generated = generateDockerfileContent(fields, uploadedFiles);
       setContent(generated);
@@ -389,15 +433,38 @@ export default function DockerfileEditorPage() {
 
   /* ── Submit ── */
 
-  const onSubmit = (data: FormData) => {
-    if (mode === 'form' && !fields.baseImage.trim()) {
-      setBaseImageError('베이스 이미지를 선택하세요.');
-      return;
+  // 저장 시 전송할 baseImage 계산: form 모드는 입력 필드, editor 모드는 content 의 FROM 파싱.
+  const resolveBaseImage = () =>
+    mode === 'form' ? fields.baseImage.trim() : extractBaseImage(content);
+
+  // baseImage 비어있음 검증 (백엔드 NOT NULL + @NotBlank 대응). 비면 에러 표시 후 false.
+  // form 모드: 베이스 이미지 입력 카드 하단 인라인 에러. editor 모드: 인라인 영역이 없으므로 토스트.
+  const validateBaseImage = (): boolean => {
+    if (!resolveBaseImage()) {
+      if (mode === 'form') {
+        setBaseImageError('베이스 이미지를 선택하세요.');
+      } else {
+        toast({
+          title: 'FROM 명령이 필요합니다.',
+          description: 'Dockerfile 에 베이스 이미지를 지정하는 FROM 라인을 추가하세요.',
+          variant: 'destructive',
+        });
+      }
+      return false;
     }
     setBaseImageError('');
+    return true;
+  };
+
+  const onSubmit = (data: FormData) => {
+    if (!validateBaseImage()) return;
+    const baseImage = resolveBaseImage();
     if (isEdit && dockerfileId !== undefined) {
       updateMutation.mutate(
-        { id: dockerfileId, data: { name: data.name, description: data.description, content } },
+        {
+          id: dockerfileId,
+          data: { name: data.name, description: data.description, content, baseImage },
+        },
         { onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`) },
       );
     } else {
@@ -406,6 +473,7 @@ export default function DockerfileEditorPage() {
           name: data.name,
           description: data.description ?? '',
           content,
+          baseImage,
           project: selectedProjectId,
           username,
         },
@@ -415,7 +483,6 @@ export default function DockerfileEditorPage() {
   };
 
   const handleBuild = () => {
-    if (dockerfileId === undefined) return;
     // Volume 이름 → pvcName 변환
     // 우선순위: 다이얼로그 선택 > COPY_VOLUME 명령어 > COPY 감지 시 첫 번째 볼륨
     let volName =
@@ -428,18 +495,62 @@ export default function DockerfileEditorPage() {
     const selectedVol = volumes.find((v) => v.name === volName);
     const pvcName = selectedVol?.pvcName;
 
-    runBuildMutation.mutate(
-      {
-        dockerfileId,
-        targetImage: buildImageName,
-        tag: buildTag,
-        ...(pvcName ? { buildContextPvc: pvcName } : {}),
-        ...(buildContextSubPath ? { buildContextSubPath } : {}),
-      },
-      {
+    // dockerfileId 만 다르고 나머지 빌드 옵션은 동일하다.
+    const buildRequest = (id: number) => ({
+      dockerfileId: id,
+      targetImage: buildImageName,
+      tag: buildTag,
+      ...(pvcName ? { buildContextPvc: pvcName } : {}),
+      ...(buildContextSubPath ? { buildContextSubPath } : {}),
+    });
+
+    const startBuild = (id: number) =>
+      runBuildMutation.mutate(buildRequest(id), {
         onSuccess: (build) => {
           setShowBuildDialog(false);
+          setBuildAfterCreate(false);
           navigate(`/builds/${build.namespace}/${build.name}`);
+        },
+      });
+
+    // EDIT 모드: 이미 저장된 Dockerfile 로 바로 빌드.
+    if (dockerfileId !== undefined) {
+      startBuild(dockerfileId);
+      return;
+    }
+
+    // CREATE 모드 ("생성 후 빌드"): 생성 → 성공 시 그 id 로 빌드.
+    const baseImage = resolveBaseImage();
+    const data = getValues();
+    createMutation.mutate(
+      {
+        name: data.name,
+        description: data.description ?? '',
+        content,
+        baseImage,
+        project: selectedProjectId,
+        username,
+      },
+      {
+        onSuccess: (created) => {
+          // 빌드가 실패해도 Dockerfile 은 이미 저장된 상태.
+          runBuildMutation.mutate(buildRequest(created.id), {
+            onSuccess: (build) => {
+              setShowBuildDialog(false);
+              setBuildAfterCreate(false);
+              navigate(`/builds/${build.namespace}/${build.name}`);
+            },
+            onError: () => {
+              setShowBuildDialog(false);
+              setBuildAfterCreate(false);
+              toast({
+                title: 'Dockerfile 은 저장되었지만 빌드 시작에 실패했습니다.',
+                description: '목록 또는 상세 화면에서 빌드를 다시 시도할 수 있습니다.',
+                variant: 'destructive',
+              });
+              navigate(`/dockerfiles?projectId=${selectedProjectId}`);
+            },
+          });
         },
       },
     );
@@ -806,6 +917,7 @@ export default function DockerfileEditorPage() {
               type="button"
               variant="outline"
               onClick={() => {
+                setBuildAfterCreate(false);
                 // COPY가 있고 볼륨 미선택 시 자동 감지
                 if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
                   const volInstr = fields.instructions.find(
@@ -820,6 +932,29 @@ export default function DockerfileEditorPage() {
               <Play className="h-4 w-4" /> 빌드 실행
             </Button>
           )}
+          {!isEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving || warnings.length > 0}
+              onClick={async () => {
+                // onSubmit 의 form-mode 가드와 동일한 검증: 이름 + 비어있지 않은 baseImage.
+                const nameValid = await trigger('name');
+                if (!nameValid || !validateBaseImage()) return;
+                // COPY가 있고 볼륨 미선택 시 자동 감지
+                if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
+                  const volInstr = fields.instructions.find(
+                    (i) => i.type === 'COPY_VOLUME' && i.volumeName,
+                  );
+                  setBuildContextVolume(volInstr?.volumeName || volumes[0].name);
+                }
+                setBuildAfterCreate(true);
+                setShowBuildDialog(true);
+              }}
+            >
+              <Play className="h-4 w-4" /> 생성 후 빌드
+            </Button>
+          )}
           <Button type="submit" disabled={isSaving}>
             {isEdit ? t('common.save') : 'Create'}
           </Button>
@@ -827,10 +962,16 @@ export default function DockerfileEditorPage() {
       </form>
 
       {/* Build Dialog */}
-      <Dialog open={showBuildDialog} onOpenChange={setShowBuildDialog}>
+      <Dialog
+        open={showBuildDialog}
+        onOpenChange={(open) => {
+          setShowBuildDialog(open);
+          if (!open) setBuildAfterCreate(false); // 닫으면 "생성 후 빌드" 의도 초기화
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('build.run')}</DialogTitle>
+            <DialogTitle>{buildAfterCreate ? '생성 후 빌드' : t('build.run')}</DialogTitle>
             <DialogDescription>빌드할 이미지 이름과 태그를 입력하세요.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
@@ -908,14 +1049,25 @@ export default function DockerfileEditorPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBuildDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowBuildDialog(false);
+                setBuildAfterCreate(false);
+              }}
+            >
               {t('common.cancel')}
             </Button>
             <Button
               onClick={handleBuild}
-              disabled={runBuildMutation.isPending || !buildImageName || !buildTag}
+              disabled={
+                runBuildMutation.isPending ||
+                createMutation.isPending ||
+                !buildImageName ||
+                !buildTag
+              }
             >
-              <Play className="h-4 w-4" /> {t('build.run')}
+              <Play className="h-4 w-4" /> {buildAfterCreate ? '생성 후 빌드' : t('build.run')}
             </Button>
           </DialogFooter>
         </DialogContent>

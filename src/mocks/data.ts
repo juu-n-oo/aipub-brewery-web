@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir \\
 WORKDIR /workspace
 
 CMD ["bash"]`,
+    baseImage: 'harbor.example.com/base/python:3.11-cuda12.1',
     project: 'pjw',
     username: 'joonwoo',
     createdAt: '2026-04-15T09:00:00Z',
@@ -45,6 +46,7 @@ WORKDIR /workspace
 EXPOSE 8888
 
 CMD ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root", "--no-browser"]`,
+    baseImage: 'harbor.example.com/base/python:3.11',
     project: 'pjw',
     username: 'alice',
     createdAt: '2026-04-14T11:00:00Z',
@@ -67,6 +69,7 @@ ENV HF_HOME=/workspace/.cache/huggingface
 WORKDIR /workspace
 
 CMD ["python", "-m", "vllm.entrypoints.openai.api_server"]`,
+    baseImage: 'harbor.example.com/base/python:3.11-cuda12.1',
     project: 'pjw',
     username: 'joonwoo',
     createdAt: '2026-04-17T08:00:00Z',

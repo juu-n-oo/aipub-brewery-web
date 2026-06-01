@@ -381,13 +381,21 @@ export const handlers = [
 
   http.post('/api/v1alpha1/dockerfiles', async ({ request }) => {
     await delay(400);
-    const body = (await request.json()) as { project: string; username: string; name: string; description?: string; content: string };
+    const body = (await request.json()) as {
+      project: string;
+      username: string;
+      name: string;
+      description?: string;
+      content: string;
+      baseImage: string;
+    };
 
     const newDf: Dockerfile = {
       id: ++nextDfId,
       name: body.name,
       description: body.description || '',
       content: body.content,
+      baseImage: body.baseImage,
       project: body.project,
       username: body.username,
       createdAt: new Date().toISOString(),
@@ -401,7 +409,12 @@ export const handlers = [
   http.put('/api/v1alpha1/dockerfiles/:id', async ({ params, request }) => {
     await delay(400);
     const id = Number(params.id);
-    const body = (await request.json()) as { name?: string; description?: string; content: string };
+    const body = (await request.json()) as {
+      name?: string;
+      description?: string;
+      content: string;
+      baseImage: string;
+    };
     const idx = dockerfiles.findIndex((d) => d.id === id);
     if (idx === -1) return new HttpResponse(null, { status: 404 });
 

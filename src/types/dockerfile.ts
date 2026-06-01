@@ -5,6 +5,7 @@ export interface Dockerfile {
   name: string;
   description: string;
   content: string;
+  baseImage: string;
   project: string;
   username: string;
   createdAt: string;
@@ -18,10 +19,12 @@ export interface DockerfileCreateRequest {
   name: string;
   description?: string;
   content: string;
+  baseImage: string;
 }
 
 export interface DockerfileUpdateRequest {
   name?: string;
   description?: string;
   content: string;
+  baseImage: string;
 }
