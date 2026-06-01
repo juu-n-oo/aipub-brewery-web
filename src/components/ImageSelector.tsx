@@ -8,7 +8,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/Dialog';
 
-const HARBOR_URL = import.meta.env.VITE_HARBOR_URL || 'aipub-harbor.cluster7.idc1.ten1010.io';
+const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
 
 interface ImageSelectorProps {
   projectId: string;
