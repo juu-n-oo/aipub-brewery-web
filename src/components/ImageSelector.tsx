@@ -40,7 +40,7 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Image className="h-5 w-5 text-primary" />
