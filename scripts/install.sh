@@ -186,6 +186,9 @@ WEB_TAG=$(${YQ_COMMAND} -r '.version.tag' "$CONFIG_FILE")
 
 WEB_IMAGE="${IMAGE_BASE}/dockerizer-web"
 
+# Harbor
+HARBOR_URL=$(${YQ_COMMAND} -r '.harbor.url // "aipub-harbor.cluster7.idc1.ten1010.io"' "$CONFIG_FILE")
+
 BACKUP_BASE_DIR="${SCRIPT_DIR}/backups/${NAMESPACE}/$(date +%Y%m%d_%H%M%S)"
 
 #==============================================================================
@@ -204,6 +207,7 @@ log_step "Deployment Plan"
 log_info "=========================================="
 log_info "  Namespace:    ${NAMESPACE}"
 log_info "  Image:        ${WEB_IMAGE}:${WEB_TAG}"
+log_info "  Harbor URL:   ${HARBOR_URL}"
 log_info "=========================================="
 log_info "  1. dockerizer-web (${WEB_TAG})"
 log_info "=========================================="
@@ -226,7 +230,9 @@ if [ "$BUILD_IMAGES" = true ]; then
     WEB_IMAGE_FULL="${WEB_IMAGE}:${WEB_TAG}"
 
     log_info "Building image: ${WEB_IMAGE_FULL}"
+    log_info "  VITE_HARBOR_URL: ${HARBOR_URL}"
     sudo docker build --platform linux/amd64 \
+      --build-arg "VITE_HARBOR_URL=${HARBOR_URL}" \
       -t "${WEB_IMAGE_FULL}" \
       -f "${SCRIPT_DIR}/../Dockerfile" \
       "${SCRIPT_DIR}/.."

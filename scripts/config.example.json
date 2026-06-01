@@ -4,5 +4,9 @@
   "version": {
     "image_base": "registry.ten1010.io:8443/aipub",
     "tag": "0.1.0"
+  },
+
+  "harbor": {
+    "url": "aipub-harbor.cluster10.idc1.ten1010.io"
   }
 }
