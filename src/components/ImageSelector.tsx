@@ -1,11 +1,23 @@
 import { useState } from 'react';
 import { Image, Loader2, Check, Search } from 'lucide-react';
-import { useProject, useRepositories, useImageTags, useNgcSearch, useNgcTags, useHuggingfaceSearch, useHuggingfaceTags } from '@/hooks/useK8s';
+import {
+  useProject,
+  useRepositories,
+  useImageTags,
+  useNgcSearch,
+  useNgcTags,
+  useHuggingfaceSearch,
+  useHuggingfaceTags,
+} from '@/hooks/useK8s';
 import type { RegistryImage } from '@/types/k8s';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/Dialog';
 
 const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
@@ -60,11 +72,17 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
           <ExternalRegistrySelector registry="ngc" onSelect={onSelect} onClose={handleClose} />
         )}
         {tab === 'huggingface' && (
-          <ExternalRegistrySelector registry="huggingface" onSelect={onSelect} onClose={handleClose} />
+          <ExternalRegistrySelector
+            registry="huggingface"
+            onSelect={onSelect}
+            onClose={handleClose}
+          />
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>닫기</Button>
+          <Button variant="outline" onClick={handleClose}>
+            닫기
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -73,7 +91,15 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
 
 /* ── AIPub ImageHub Tab ── */
 
-function AIPubImageSelector({ projectId, onSelect, onClose }: { projectId: string; onSelect: (ref: string) => void; onClose: () => void }) {
+function AIPubImageSelector({
+  projectId,
+  onSelect,
+  onClose,
+}: {
+  projectId: string;
+  onSelect: (ref: string) => void;
+  onClose: () => void;
+}) {
   const [selectedHub, setSelectedHub] = useState('');
   const [selectedRepo, setSelectedRepo] = useState('');
 
@@ -83,42 +109,82 @@ function AIPubImageSelector({ projectId, onSelect, onClose }: { projectId: strin
 
   const imageHubs = project?.spec.binding.imageHubs ?? [];
   const repos = repoReview?.status.repositories ?? [];
-  const allTags = (tagReview?.status.artifacts ?? []).flatMap((a) => a.tags.map((tag) => ({ tag, digest: a.digest })));
+  const allTags = (tagReview?.status.artifacts ?? []).flatMap((a) =>
+    a.tags.map((tag) => ({ tag, digest: a.digest })),
+  );
 
   const preview = selectedHub
-    ? selectedRepo ? `${HARBOR_URL}/${selectedHub}/${selectedRepo}:<tag>` : `${HARBOR_URL}/${selectedHub}/...`
+    ? selectedRepo
+      ? `${HARBOR_URL}/${selectedHub}/${selectedRepo}:<tag>`
+      : `${HARBOR_URL}/${selectedHub}/...`
     : '';
 
   return (
     <>
       {preview && (
-        <div className="text-xs text-text-secondary bg-muted-bg rounded-md px-3 py-2 font-mono truncate">{preview}</div>
+        <div className="text-xs text-muted-foreground bg-muted rounded-md px-3 py-2 font-mono truncate">
+          {preview}
+        </div>
       )}
       <div className="flex border border-border rounded-lg overflow-hidden h-[320px]">
-        <Column title="ImageHub" loading={projectLoading} empty={imageHubs.length === 0} emptyText="ImageHub 없음">
+        <Column
+          title="ImageHub"
+          loading={projectLoading}
+          empty={imageHubs.length === 0}
+          emptyText="ImageHub 없음"
+        >
           {imageHubs.map((hub) => (
-            <ColumnItem key={hub} label={hub} selected={selectedHub === hub}
-              onClick={() => { setSelectedHub(hub); setSelectedRepo(''); }} />
+            <ColumnItem
+              key={hub}
+              label={hub}
+              selected={selectedHub === hub}
+              onClick={() => {
+                setSelectedHub(hub);
+                setSelectedRepo('');
+              }}
+            />
           ))}
         </Column>
-        <Column title="Repository" loading={repoLoading && !!selectedHub}
-          empty={!!selectedHub && !repoLoading && repos.length === 0} emptyText="리포지토리 없음"
-          placeholder={!selectedHub} placeholderText="ImageHub를 선택하세요">
+        <Column
+          title="Repository"
+          loading={repoLoading && !!selectedHub}
+          empty={!!selectedHub && !repoLoading && repos.length === 0}
+          emptyText="리포지토리 없음"
+          placeholder={!selectedHub}
+          placeholderText="ImageHub를 선택하세요"
+        >
           {repos.map((r) => (
-            <ColumnItem key={r.name} label={r.name} selected={selectedRepo === r.name}
-              onClick={() => setSelectedRepo(r.name)} />
+            <ColumnItem
+              key={r.name}
+              label={r.name}
+              selected={selectedRepo === r.name}
+              onClick={() => setSelectedRepo(r.name)}
+            />
           ))}
         </Column>
-        <Column title="Tag" loading={tagLoading && !!selectedRepo}
-          empty={!!selectedRepo && !tagLoading && allTags.length === 0} emptyText="태그 없음"
-          placeholder={!selectedRepo} placeholderText="Repository를 선택하세요" isLast>
+        <Column
+          title="Tag"
+          loading={tagLoading && !!selectedRepo}
+          empty={!!selectedRepo && !tagLoading && allTags.length === 0}
+          emptyText="태그 없음"
+          placeholder={!selectedRepo}
+          placeholderText="Repository를 선택하세요"
+          isLast
+        >
           {allTags.map(({ tag, digest }) => (
-            <li key={`${digest}-${tag}`}
+            <li
+              key={`${digest}-${tag}`}
               className="px-3 py-2 flex items-center justify-between hover:bg-primary/5 cursor-pointer transition-colors text-sm"
-              onClick={() => { onSelect(`${HARBOR_URL}/${selectedHub}/${selectedRepo}:${tag}`); onClose(); }}>
+              onClick={() => {
+                onSelect(`${HARBOR_URL}/${selectedHub}/${selectedRepo}:${tag}`);
+                onClose();
+              }}
+            >
               <div className="flex flex-col min-w-0">
-                <span className="text-text-primary font-medium truncate">{tag}</span>
-                <span className="text-[10px] text-text-muted font-mono truncate">{digest.slice(0, 24)}...</span>
+                <span className="text-foreground font-medium truncate">{tag}</span>
+                <span className="text-[10px] text-muted-foreground/70 font-mono truncate">
+                  {digest.slice(0, 24)}...
+                </span>
               </div>
               <span className="text-xs text-primary shrink-0 ml-2">선택</span>
             </li>
@@ -131,7 +197,15 @@ function AIPubImageSelector({ projectId, onSelect, onClose }: { projectId: strin
 
 /* ── External Registry Tab (NGC / HuggingFace) ── */
 
-function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: 'ngc' | 'huggingface'; onSelect: (ref: string) => void; onClose: () => void }) {
+function ExternalRegistrySelector({
+  registry,
+  onSelect,
+  onClose,
+}: {
+  registry: 'ngc' | 'huggingface';
+  onSelect: (ref: string) => void;
+  onClose: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedImage, setSelectedImage] = useState<RegistryImage | null>(null);
@@ -144,8 +218,12 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
   const isSearching = searchResult.isLoading;
 
   // 태그 조회 — NGC는 org/repo 분리 필요
-  const ngcOrg = registry === 'ngc' && selectedImage ? selectedImage.name.split('/')[0] ?? '' : '';
-  const ngcRepo = registry === 'ngc' && selectedImage ? selectedImage.name.split('/').slice(1).join('/') ?? '' : '';
+  const ngcOrg =
+    registry === 'ngc' && selectedImage ? (selectedImage.name.split('/')[0] ?? '') : '';
+  const ngcRepo =
+    registry === 'ngc' && selectedImage
+      ? (selectedImage.name.split('/').slice(1).join('/') ?? '')
+      : '';
   const hfRepo = registry === 'huggingface' && selectedImage ? selectedImage.name : '';
 
   const ngcTags = useNgcTags(ngcOrg, ngcRepo);
@@ -168,7 +246,7 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
       {/* Search Bar */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
           <Input
             placeholder={`${registryLabel}에서 이미지 검색 (예: pytorch, tensorflow)`}
             value={query}
@@ -177,19 +255,21 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
             className="pl-9"
           />
         </div>
-        <Button type="button" onClick={handleSearch} disabled={!query.trim()}>검색</Button>
+        <Button type="button" onClick={handleSearch} disabled={!query.trim()}>
+          검색
+        </Button>
       </div>
 
       {/* Results */}
       <div className="flex border border-border rounded-lg overflow-hidden h-[320px]">
         {/* Left: Image List */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border">
-          <div className="px-3 py-2 border-b border-border bg-table-header-bg shrink-0">
-            <span className="text-xs font-medium text-text-secondary">이미지</span>
+          <div className="px-3 py-2 border-b border-border bg-muted shrink-0">
+            <span className="text-xs font-medium text-muted-foreground">이미지</span>
           </div>
           <ul className="flex-1 overflow-auto">
             {!searchTerm ? (
-              <li className="flex items-center justify-center py-10 text-xs text-text-muted">
+              <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
                 검색어를 입력하세요
               </li>
             ) : isSearching ? (
@@ -197,7 +277,7 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
                 <Loader2 className="h-4 w-4 text-primary animate-spin" />
               </li>
             ) : images.length === 0 ? (
-              <li className="flex items-center justify-center py-10 text-xs text-text-muted">
+              <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
                 검색 결과가 없습니다
               </li>
             ) : (
@@ -206,12 +286,16 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
                   key={img.name}
                   onClick={() => setSelectedImage(img)}
                   className={`px-3 py-2.5 cursor-pointer transition-colors ${
-                    selectedImage?.name === img.name ? 'bg-primary/10' : 'hover:bg-muted-bg'
+                    selectedImage?.name === img.name ? 'bg-primary/10' : 'hover:bg-muted'
                   }`}
                 >
-                  <div className="text-sm font-medium text-text-primary truncate">{img.name}</div>
-                  <div className="text-[10px] text-text-muted truncate mt-0.5">{img.description}</div>
-                  <div className="text-[10px] text-text-secondary font-mono mt-0.5">{img.fullPath}</div>
+                  <div className="text-sm font-medium text-foreground truncate">{img.name}</div>
+                  <div className="text-[10px] text-muted-foreground/70 truncate mt-0.5">
+                    {img.description}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                    {img.fullPath}
+                  </div>
                 </li>
               ))
             )}
@@ -220,12 +304,12 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
 
         {/* Right: Tags */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="px-3 py-2 border-b border-border bg-table-header-bg shrink-0">
-            <span className="text-xs font-medium text-text-secondary">Tag</span>
+          <div className="px-3 py-2 border-b border-border bg-muted shrink-0">
+            <span className="text-xs font-medium text-muted-foreground">Tag</span>
           </div>
           <ul className="flex-1 overflow-auto">
             {!selectedImage ? (
-              <li className="flex items-center justify-center py-10 text-xs text-text-muted">
+              <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
                 이미지를 선택하세요
               </li>
             ) : isLoadingTags ? (
@@ -233,7 +317,7 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
                 <Loader2 className="h-4 w-4 text-primary animate-spin" />
               </li>
             ) : tags.length === 0 ? (
-              <li className="flex items-center justify-center py-10 text-xs text-text-muted">
+              <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
                 태그가 없습니다
               </li>
             ) : (
@@ -241,9 +325,12 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
                 <li
                   key={tag}
                   className="px-3 py-2.5 flex items-center justify-between hover:bg-primary/5 cursor-pointer transition-colors text-sm"
-                  onClick={() => { onSelect(`${selectedImage.fullPath}:${tag}`); onClose(); }}
+                  onClick={() => {
+                    onSelect(`${selectedImage.fullPath}:${tag}`);
+                    onClose();
+                  }}
                 >
-                  <span className="text-text-primary font-medium">{tag}</span>
+                  <span className="text-foreground font-medium">{tag}</span>
                   <span className="text-xs text-primary">선택</span>
                 </li>
               ))
@@ -257,13 +344,23 @@ function ExternalRegistrySelector({ registry, onSelect, onClose }: { registry: '
 
 /* ── Shared Components ── */
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-        active ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'
+        active
+          ? 'border-primary text-primary'
+          : 'border-transparent text-muted-foreground hover:text-foreground'
       }`}
     >
       {children}
@@ -271,30 +368,67 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function Column({ title, loading, empty, emptyText, placeholder, placeholderText, isLast, children }: {
-  title: string; loading?: boolean; empty?: boolean; emptyText?: string;
-  placeholder?: boolean; placeholderText?: string; isLast?: boolean; children?: React.ReactNode;
+function Column({
+  title,
+  loading,
+  empty,
+  emptyText,
+  placeholder,
+  placeholderText,
+  isLast,
+  children,
+}: {
+  title: string;
+  loading?: boolean;
+  empty?: boolean;
+  emptyText?: string;
+  placeholder?: boolean;
+  placeholderText?: string;
+  isLast?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
     <div className={`flex-1 flex flex-col min-w-0 ${isLast ? '' : 'border-r border-border'}`}>
-      <div className="px-3 py-2 border-b border-border bg-table-header-bg shrink-0">
-        <span className="text-xs font-medium text-text-secondary">{title}</span>
+      <div className="px-3 py-2 border-b border-border bg-muted shrink-0">
+        <span className="text-xs font-medium text-muted-foreground">{title}</span>
       </div>
       <ul className="flex-1 overflow-auto">
-        {loading ? <li className="flex items-center justify-center py-10"><Loader2 className="h-4 w-4 text-primary animate-spin" /></li>
-          : placeholder ? <li className="flex items-center justify-center py-10 text-xs text-text-muted">{placeholderText}</li>
-          : empty ? <li className="flex items-center justify-center py-10 text-xs text-text-muted">{emptyText}</li>
-          : children}
+        {loading ? (
+          <li className="flex items-center justify-center py-10">
+            <Loader2 className="h-4 w-4 text-primary animate-spin" />
+          </li>
+        ) : placeholder ? (
+          <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
+            {placeholderText}
+          </li>
+        ) : empty ? (
+          <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
+            {emptyText}
+          </li>
+        ) : (
+          children
+        )}
       </ul>
     </div>
   );
 }
 
-function ColumnItem({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+function ColumnItem({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
   return (
-    <li className={`px-3 py-2.5 flex items-center justify-between cursor-pointer transition-colors text-sm ${
-      selected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted-bg text-text-primary'
-    }`} onClick={onClick}>
+    <li
+      className={`px-3 py-2.5 flex items-center justify-between cursor-pointer transition-colors text-sm ${
+        selected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground'
+      }`}
+      onClick={onClick}
+    >
       <span className="truncate">{label}</span>
       {selected && <Check className="h-3.5 w-3.5 shrink-0" />}
     </li>

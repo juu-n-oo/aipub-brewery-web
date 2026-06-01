@@ -45,40 +45,49 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-[#f5f5f5] px-6 py-12">
+    <div className="flex min-h-svh items-center justify-center bg-muted px-6 py-12">
       <div className="flex w-full max-w-6xl items-center gap-12">
         {/* Left: Branding */}
-        <div className="hidden lg:flex flex-1 flex-col items-center justify-center px-8">
+        <div className="hidden flex-1 flex-col items-center justify-center px-8 lg:flex">
           {/* Logo */}
-          <div className="flex flex-col items-center mb-12">
-            <svg className="h-32 w-32 mb-6" viewBox="0 0 64 64" fill="none">
+          <div className="mb-12 flex flex-col items-center">
+            <svg className="mb-6 h-32 w-32" viewBox="0 0 64 64" fill="none">
               <circle cx="20" cy="32" r="12" fill="#FF9500" />
-              <path d="M28 20c6.627 0 12 5.373 12 12s-5.373 12-12 12" stroke="#2e7bff" strokeWidth="6" strokeLinecap="round" />
-              <circle cx="44" cy="32" r="8" fill="#2e7bff" />
+              <path
+                d="M28 20c6.627 0 12 5.373 12 12s-5.373 12-12 12"
+                stroke="var(--primary)"
+                strokeWidth="6"
+                strokeLinecap="round"
+              />
+              <circle cx="44" cy="32" r="8" fill="var(--primary)" />
             </svg>
-            <span className="text-6xl font-bold text-text-primary tracking-tight">Dockerizer</span>
+            <span className="text-6xl font-bold tracking-tight text-foreground">Dockerizer</span>
           </div>
 
-          <h2 className="text-4xl font-bold text-text-primary leading-snug text-center mb-3">
-            인공지능<br />
-            <span className="text-primary">개발</span>·<span className="text-[#FF9500]">운영</span>의 모든것
+          <h2 className="mb-3 text-center text-4xl font-bold leading-snug text-foreground">
+            인공지능
+            <br />
+            <span className="text-primary">개발</span>·<span className="text-[#FF9500]">운영</span>
+            의 모든것
           </h2>
 
-          <p className="text-base text-text-secondary mt-6">
+          <p className="mt-6 text-base text-muted-foreground">
             Dockerizer 사이트는 크롬 브라우저 사용을 권장합니다.
           </p>
-          <p className="text-sm text-text-muted mt-1.5">©AIPub, TEN Inc</p>
+          <p className="mt-1.5 text-sm text-muted-foreground/70">©AIPub, TEN Inc</p>
         </div>
 
         {/* Right: Login Form */}
         <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xl bg-white rounded-2xl shadow-lg p-14">
-            <h1 className="text-3xl font-bold text-text-primary mb-10">Sign in</h1>
+          <div className="w-full max-w-xl rounded-2xl border bg-card p-14 shadow-lg">
+            <h1 className="mb-10 text-3xl font-bold text-foreground">Sign in</h1>
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-7">
               {/* ID */}
               <div className="flex flex-col gap-2">
-                <Label htmlFor="username" className="text-base">ID</Label>
+                <Label htmlFor="username" className="text-base">
+                  ID
+                </Label>
                 <Input
                   id="username"
                   placeholder="아이디를 입력해 주세요."
@@ -87,13 +96,15 @@ export default function LoginPage() {
                   {...register('username')}
                 />
                 {errors.username && (
-                  <p className="text-sm text-error">{errors.username.message}</p>
+                  <p className="text-sm text-destructive">{errors.username.message}</p>
                 )}
               </div>
 
               {/* Password */}
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password" className="text-base">Password</Label>
+                <Label htmlFor="password" className="text-base">
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -106,24 +117,20 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-error">{errors.password.message}</p>
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
                 )}
               </div>
 
               {/* Error Message */}
               {loginError && (
-                <div className="rounded-md bg-error-bg border border-error/20 px-4 py-3">
-                  <p className="text-base text-error">{loginError}</p>
+                <div className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3">
+                  <p className="text-base text-destructive">{loginError}</p>
                 </div>
               )}
 

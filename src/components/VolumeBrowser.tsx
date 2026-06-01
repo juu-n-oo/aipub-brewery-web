@@ -3,7 +3,11 @@ import { Folder, FileText, ChevronRight, Loader2, HardDrive, Check } from 'lucid
 import { useVolumes, useVolumeFiles } from '@/hooks/useK8s';
 import { Button } from '@/components/ui/Button';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/Dialog';
 // types used via useVolumeFiles hook
 
@@ -22,7 +26,11 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
   const [currentPath, setCurrentPath] = useState('/');
   const [selectedFile, setSelectedFile] = useState('');
 
-  const { data: listing, isLoading: filesLoading } = useVolumeFiles(namespace, selectedVolume, currentPath);
+  const { data: listing, isLoading: filesLoading } = useVolumeFiles(
+    namespace,
+    selectedVolume,
+    currentPath,
+  );
   const entries = listing?.entries ?? [];
 
   const dirs = entries.filter((e) => e.type === 'DIRECTORY');
@@ -74,7 +82,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
 
         {/* Selected path preview */}
         {selectedFile && (
-          <div className="text-xs text-text-secondary bg-muted-bg rounded-md px-3 py-2 font-mono truncate">
+          <div className="text-xs text-muted-foreground bg-muted rounded-md px-3 py-2 font-mono truncate">
             Volume: {selectedVolume} &rarr; {selectedFile}
           </div>
         )}
@@ -83,8 +91,8 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
         <div className="flex border border-border rounded-lg overflow-hidden h-[400px]">
           {/* Left: Volume List */}
           <div className="w-48 shrink-0 border-r border-border flex flex-col">
-            <div className="px-3 py-2 border-b border-border bg-table-header-bg shrink-0">
-              <span className="text-xs font-medium text-text-secondary">Volume</span>
+            <div className="px-3 py-2 border-b border-border bg-muted shrink-0">
+              <span className="text-xs font-medium text-muted-foreground">Volume</span>
             </div>
             <ul className="flex-1 overflow-auto">
               {volumesLoading ? (
@@ -92,7 +100,9 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                   <Loader2 className="h-4 w-4 text-primary animate-spin" />
                 </li>
               ) : volumes.length === 0 ? (
-                <li className="flex items-center justify-center py-10 text-xs text-text-muted">Volume 없음</li>
+                <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
+                  Volume 없음
+                </li>
               ) : (
                 volumes.map((v) => (
                   <li
@@ -101,14 +111,16 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                     className={`px-3 py-2.5 cursor-pointer transition-colors text-sm ${
                       selectedVolume === v.name
                         ? 'bg-primary/10 text-primary font-medium'
-                        : 'hover:bg-muted-bg text-text-primary'
+                        : 'hover:bg-muted text-foreground'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <HardDrive className="h-3.5 w-3.5 shrink-0" />
                       <div className="min-w-0">
                         <div className="truncate text-xs font-medium">{v.name}</div>
-                        <div className="text-[10px] text-text-muted">{v.capacity} (사용: {v.used})</div>
+                        <div className="text-[10px] text-muted-foreground/70">
+                          {v.capacity} (사용: {v.used})
+                        </div>
                       </div>
                     </div>
                   </li>
@@ -120,10 +132,13 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
           {/* Right: File Browser */}
           <div className="flex-1 flex flex-col min-w-0">
             {/* Breadcrumb */}
-            <div className="px-3 py-2 border-b border-border bg-table-header-bg shrink-0 flex items-center gap-1 text-xs overflow-x-auto">
+            <div className="px-3 py-2 border-b border-border bg-muted shrink-0 flex items-center gap-1 text-xs overflow-x-auto">
               <button
-                onClick={() => { setCurrentPath('/'); setSelectedFile(''); }}
-                className={`hover:text-primary shrink-0 ${currentPath === '/' ? 'text-text-primary font-medium' : 'text-text-secondary'}`}
+                onClick={() => {
+                  setCurrentPath('/');
+                  setSelectedFile('');
+                }}
+                className={`hover:text-primary shrink-0 ${currentPath === '/' ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
               >
                 /
               </button>
@@ -132,10 +147,13 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                 const isLast = i === pathSegments.length - 1;
                 return (
                   <span key={segPath} className="flex items-center gap-1 shrink-0">
-                    <ChevronRight className="h-3 w-3 text-text-muted" />
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/70" />
                     <button
-                      onClick={() => { setCurrentPath(segPath); setSelectedFile(''); }}
-                      className={`hover:text-primary ${isLast ? 'text-text-primary font-medium' : 'text-text-secondary'}`}
+                      onClick={() => {
+                        setCurrentPath(segPath);
+                        setSelectedFile('');
+                      }}
+                      className={`hover:text-primary ${isLast ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
                     >
                       {seg}
                     </button>
@@ -147,7 +165,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
             {/* File list */}
             <div className="flex-1 overflow-auto">
               {!selectedVolume ? (
-                <div className="flex items-center justify-center h-full text-xs text-text-muted">
+                <div className="flex items-center justify-center h-full text-xs text-muted-foreground/70">
                   왼쪽에서 Volume을 선택하세요
                 </div>
               ) : filesLoading ? (
@@ -155,16 +173,22 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                   <Loader2 className="h-4 w-4 text-primary animate-spin" />
                 </div>
               ) : entries.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-xs text-text-muted">
+                <div className="flex items-center justify-center h-full text-xs text-muted-foreground/70">
                   빈 디렉토리입니다
                 </div>
               ) : (
                 <table className="w-full text-xs">
-                  <thead className="bg-muted-bg/50 sticky top-0">
+                  <thead className="bg-muted/50 sticky top-0">
                     <tr className="border-b border-border">
-                      <th className="text-left px-3 py-1.5 font-medium text-text-secondary">이름</th>
-                      <th className="text-right px-3 py-1.5 font-medium text-text-secondary w-24">크기</th>
-                      <th className="text-right px-3 py-1.5 font-medium text-text-secondary w-36">수정일</th>
+                      <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">
+                        이름
+                      </th>
+                      <th className="text-right px-3 py-1.5 font-medium text-muted-foreground w-24">
+                        크기
+                      </th>
+                      <th className="text-right px-3 py-1.5 font-medium text-muted-foreground w-36">
+                        수정일
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -178,33 +202,42 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                       >
                         <td className="px-3 py-2 flex items-center gap-2">
                           <Folder className="h-4 w-4 text-[#FF9500] shrink-0" />
-                          <span className="text-text-primary font-medium">{entry.name}/</span>
+                          <span className="text-foreground font-medium">{entry.name}/</span>
                         </td>
-                        <td className="px-3 py-2 text-right text-text-muted">—</td>
-                        <td className="px-3 py-2 text-right text-text-muted">{formatDate(entry.modifiedAt)}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground/70">—</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground/70">
+                          {formatDate(entry.modifiedAt)}
+                        </td>
                       </tr>
                     ))}
                     {/* Files */}
                     {files.map((entry) => {
-                      const fullPath = currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`;
+                      const fullPath =
+                        currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`;
                       const isSelected = selectedFile === fullPath;
                       return (
                         <tr
                           key={entry.name}
                           className={`border-b border-border cursor-pointer transition-colors ${
-                            isSelected ? 'bg-primary/10' : 'hover:bg-muted-bg'
+                            isSelected ? 'bg-primary/10' : 'hover:bg-muted'
                           }`}
                           onClick={() => handleSelectFile(entry.name)}
                         >
                           <td className="px-3 py-2 flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-text-muted shrink-0" />
-                            <span className={`${isSelected ? 'text-primary font-medium' : 'text-text-primary'}`}>
+                            <FileText className="h-4 w-4 text-muted-foreground/70 shrink-0" />
+                            <span
+                              className={`${isSelected ? 'text-primary font-medium' : 'text-foreground'}`}
+                            >
                               {entry.name}
                             </span>
                             {isSelected && <Check className="h-3 w-3 text-primary" />}
                           </td>
-                          <td className="px-3 py-2 text-right text-text-muted">{formatSize(entry.size)}</td>
-                          <td className="px-3 py-2 text-right text-text-muted">{formatDate(entry.modifiedAt)}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground/70">
+                            {formatSize(entry.size)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-muted-foreground/70">
+                            {formatDate(entry.modifiedAt)}
+                          </td>
                         </tr>
                       );
                     })}
@@ -216,7 +249,9 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>닫기</Button>
+          <Button variant="outline" onClick={handleClose}>
+            닫기
+          </Button>
           <Button onClick={handleConfirm} disabled={!selectedFile}>
             <Check className="h-4 w-4" />
             선택
@@ -237,6 +272,8 @@ function formatSize(bytes: number): string {
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   });
 }

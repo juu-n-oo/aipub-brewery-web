@@ -1,29 +1,27 @@
-import { useState, useCallback } from 'react';
+import { toast as sonnerToast } from 'sonner';
 
-export interface ToastData {
-  id: string;
+export interface ToastOptions {
   title?: string;
   description?: string;
   variant?: 'default' | 'destructive';
 }
 
-let toastCount = 0;
-
+/**
+ * sonner 기반 토스트 헬퍼. 기존 useToast 시그니처를 유지한다.
+ * `const { toast } = useToast()` 형태로 사용.
+ */
 export function useToast() {
-  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const toast = ({ title, description, variant = 'default' }: ToastOptions) => {
+    const message = title ?? description ?? '';
+    const opts = title && description ? { description } : undefined;
+    return variant === 'destructive'
+      ? sonnerToast.error(message, opts)
+      : sonnerToast(message, opts);
+  };
 
-  const toast = useCallback(
-    ({ title, description, variant = 'default' }: Omit<ToastData, 'id'>) => {
-      const id = String(++toastCount);
-      setToasts((prev) => [...prev, { id, title, description, variant }]);
-      return id;
-    },
-    [],
-  );
+  const dismiss = (id?: string | number) => sonnerToast.dismiss(id);
 
-  const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  return { toasts, toast, dismiss };
+  return { toast, dismiss };
 }
+
+export { sonnerToast as toast };

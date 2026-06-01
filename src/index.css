@@ -2,106 +2,235 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
-@theme {
-  /* ── AIPub 공식 Blue 팔레트 ── */
-  --color-blue-50: #e6f7ff;
-  --color-blue-100: #cceeFF;
-  --color-blue-200: #b3e2ff;
-  --color-blue-300: #99d3ff;
-  --color-blue-400: #7abfff;
-  --color-blue-500: #61abff;
-  --color-blue-600: #4791ff;
-  --color-blue-700: #2e7bff;
-  --color-blue-800: #326aec;
-  --color-blue-900: #3342cc;
-  --color-blue-950: #3139aa;
+@custom-variant dark (&:is(.dark *));
 
-  /* ── Semantic: Primary ── */
-  --color-primary: #2e7bff;
-  --color-primary-hover: #326aec;
-  --color-primary-light: #e6f7ff;
-  --color-primary-foreground: #f8fafc;
+:root {
+  /* shadcn-ui */
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(0 0% 4%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 4%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 4%);
+  --primary: hsl(218 100% 59%);
+  --primary-foreground: hsl(0 0% 98%);
+  --secondary: hsl(0 0% 96%);
+  --secondary-foreground: hsl(0 0% 9%);
+  --muted: hsl(0 0% 96%);
+  --muted-foreground: hsl(0 0% 45%);
+  --accent: hsl(0 0% 96%);
+  --accent-foreground: hsl(0 0% 9%);
+  --destructive: hsl(0 72% 51%);
+  --border: hsl(0 0% 90%);
+  --input: hsl(0 0% 90%);
+  --ring: hsl(0 0% 64%);
+  --radius: 0.625rem;
+  --chart-1: hsl(21 90% 48%);
+  --chart-2: hsl(175 84% 32%);
+  --chart-3: hsl(196 64% 24%);
+  --chart-4: hsl(43 96% 56%);
+  --chart-5: hsl(38 92% 50%);
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-background: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(0 0% 4%);
+  --sidebar-primary: hsl(0 0% 9%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(0 0% 96%);
+  --sidebar-accent-foreground: hsl(0 0% 9%);
+  --sidebar-border: hsl(0 0% 90%);
+  --sidebar-ring: hsl(0 0% 64%);
+  --sidebar-active-background: hsl(200 100% 94%);
 
-  /* ── Semantic: Destructive ── */
-  --color-destructive: #f87272;
-
-  /* ── Sidebar ── */
-  --color-sidebar-bg: #fafafa;
-  --color-sidebar-border: #e6e6e6;
-  --color-sidebar-active-bg: #e0f5ff;
-  --color-sidebar-active-text: #2e7bff;
-  --color-sidebar-section: #737373;
-  --color-sidebar-text: #171717;
-  --color-sidebar-hover: #f5f5f5;
-
-  /* ── Backgrounds ── */
-  --color-page-bg: #ffffff;
-  --color-content-bg: #ffffff;
-  --color-muted-bg: #f5f5f5;
-  --color-header-bg: #ffffff;
-  --color-highlight-bg: #e6f7ff;
-
-  /* ── Text ── */
-  --color-text-primary: #0a0a0a;
-  --color-text-secondary: #737373;
-  --color-text-muted: #a3a3a3;
-  --color-text-link: #2e7bff;
-
-  /* ── Borders ── */
-  --color-border: #e6e6e6;
-  --color-border-input: #e6e6e6;
-  --color-border-focus: #2e7bff;
-
-  /* ── Status ── */
-  --color-success: #16a34a;
-  --color-success-bg: #f0fdf4;
-  --color-warning: #f59e0b;
-  --color-warning-bg: #fffbeb;
-  --color-error: #dc2626;
-  --color-error-bg: #fef2f2;
-
-  /* ── Table ── */
-  --color-table-header-bg: #f5f5f5;
-  --color-table-row-hover: #fafafa;
-  --color-table-border: #e6e6e6;
-
-  /* ── Radius (AIPub default: 0.625rem = 10px) ── */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
-
-  /* ── Layout ── */
+  /* custom */
+  --gnb-height: 56px;
   --header-height: 56px;
   --sidebar-width: 200px;
-
-  /* ── Font ── */
-  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
-    Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic',
-    sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+  --highlight-background: hsl(200 100% 94% / 0.4);
+  --warning: hsl(32 94% 44%);
 }
 
-body {
-  margin: 0;
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: var(--color-text-primary);
-  background: var(--color-page-bg);
-  font-size: 14px;
-  line-height: 1.5;
+.dark {
+  /* shadcn-ui */
+  --background: hsl(0 0% 4%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(0 0% 9%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(0 0% 15%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(218 100% 59%);
+  --primary-foreground: hsl(0 0% 9%);
+  --secondary: hsl(0 0% 15%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(0 0% 15%);
+  --muted-foreground: hsl(0 0% 64%);
+  --accent: hsl(0 0% 25%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(0 91% 71%);
+  --border: hsl(0 0% 100% / 0.1);
+  --input: hsl(0 0% 100% / 0.15);
+  --ring: hsl(0 0% 45%);
+  --chart-1: hsl(224 76% 48%);
+  --chart-2: hsl(160 84% 39%);
+  --chart-3: hsl(38 92% 50%);
+  --chart-4: hsl(271 91% 65%);
+  --chart-5: hsl(350 89% 60%);
+  --sidebar: hsl(0 0% 9%);
+  --sidebar-background: hsl(0 0% 9%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(224 76% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(0 0% 15%);
+  --sidebar-accent-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(0 0% 100% / 0.1);
+  --sidebar-ring: hsl(0 0% 32%);
+  --sidebar-active-background: hsl(200 100% 94%);
+
+  /* custom */
+  --highlight-background: hsl(200 100% 94% / 0.12);
+  --warning: hsl(32 94% 44%);
 }
 
-#root {
-  min-height: 100svh;
+.theme-blue {
+  --primary: hsl(221.2 83.2% 53.3%);
+  --primary-foreground: hsl(210 40% 98%);
+}
+.dark .theme-blue {
+  --primary: hsl(217.2 91.2% 59.8%);
+  --primary-foreground: hsl(210 40% 98%);
+}
+
+.theme-green {
+  --primary: hsl(142.1 76.2% 36.3%);
+  --primary-foreground: hsl(144 60% 98%);
+}
+.dark .theme-green {
+  --primary: hsl(142.1 70.6% 45.3%);
+  --primary-foreground: hsl(144 60% 98%);
+}
+
+.theme-violet {
+  --primary: hsl(262.1 83.3% 57.8%);
+  --primary-foreground: hsl(264 70% 98%);
+}
+.dark .theme-violet {
+  --primary: hsl(263.4 90.2% 61.4%);
+  --primary-foreground: hsl(264 70% 98%);
+}
+
+.theme-orange {
+  --primary: hsl(24.6 95% 53.1%);
+  --primary-foreground: hsl(26 83% 98%);
+}
+.dark .theme-orange {
+  --primary: hsl(20.5 90.2% 48.2%);
+  --primary-foreground: hsl(26 83% 98%);
+}
+
+.theme-yellow {
+  --primary: #f59e0b;
+  --primary-foreground: #fefce8;
+}
+.dark .theme-yellow {
+  --primary: #f59e0b;
+  --primary-foreground: #fefce8;
+}
+
+/* Tailwind 테마 확장/오버라이드: AIPub 공식 blue 팔레트 */
+@theme {
+  --color-blue-50: hsl(198 100% 95%);
+  --color-blue-100: hsl(200 100% 90%);
+  --color-blue-200: hsl(203 100% 85%);
+  --color-blue-300: hsl(206 100% 80%);
+  --color-blue-400: hsl(209 100% 74%);
+  --color-blue-500: hsl(212 100% 69%);
+  --color-blue-600: hsl(216 100% 64%);
+  --color-blue-700: hsl(218 100% 59%);
+  --color-blue-800: hsl(222 83% 56%);
+  --color-blue-900: hsl(234 60% 50%);
+  --color-blue-950: hsl(236 55% 43%);
+}
+
+@theme inline {
+  /* shadcn-ui */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-background: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-active-background: var(--sidebar-active-background);
+  --font-sans:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+    'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* custom */
+  --color-warning: var(--warning);
+  --color-highlight-background: var(--highlight-background);
+  --header-height: var(--header-height);
+  --sidebar-width: var(--sidebar-width);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 14px;
+    line-height: 1.5;
+    @apply bg-background text-foreground;
+  }
+  #root {
+    min-height: 100svh;
+  }
+  button,
+  [role='button'] {
+    @apply cursor-pointer;
+  }
 }
 
 /* Selection — AIPub 스타일 */
 ::selection {
-  background-color: var(--color-primary);
-  color: var(--color-primary-foreground);
+  background-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
 /* Scrollbar */
@@ -109,16 +238,13 @@ body {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d4;
+  background: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
   border-radius: 3px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #a3a3a3;
+  background: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
 }

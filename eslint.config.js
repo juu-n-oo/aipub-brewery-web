@@ -29,4 +29,12 @@ export default defineConfig([
       'prettier/prettier': 'warn',
     },
   },
+  {
+    // shadcn/ui 프리미티브는 cva variants(buttonVariants 등)를 컴포넌트와 함께 export 한다.
+    // fast-refresh 전용 규칙이므로 ui 디렉터리에서는 비활성화한다.
+    files: ['src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ]);

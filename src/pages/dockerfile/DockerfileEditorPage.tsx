@@ -7,12 +7,22 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  AlertTriangle, Play, Plus, Trash2, ChevronDown, ChevronUp,
-  Upload, HardDrive, Terminal, Variable, Copy,
+  AlertTriangle,
+  Play,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Upload,
+  HardDrive,
+  Terminal,
+  Variable,
+  Copy,
 } from 'lucide-react';
 import { useDockerfile, useCreateDockerfile, useUpdateDockerfile } from '@/hooks/useDockerfiles';
 import { useRunBuild } from '@/hooks/useBuilds';
 import { useAuth } from '@/hooks/useAuthContext';
+import { useTheme } from '@/hooks/useTheme';
 import { useProject, useVolumes } from '@/hooks/useK8s';
 import { validateDockerfile, type DockerfileWarning } from '@/lib/dockerfile-validator';
 import { Button } from '@/components/ui/Button';
@@ -21,7 +31,12 @@ import { Label } from '@/components/ui/Label';
 import { ImageSelector } from '@/components/ImageSelector';
 import { VolumeBrowser } from '@/components/VolumeBrowser';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/Dialog';
 
 const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
@@ -68,11 +83,16 @@ const defaultFields: DockerfileFields = {
 };
 
 let nextInstrId = 1;
-function newId() { return `instr-${nextInstrId++}`; }
+function newId() {
+  return `instr-${nextInstrId++}`;
+}
 
 /* ── Generate Dockerfile ── */
 
-function generateDockerfileContent(fields: DockerfileFields, _uploadedFiles?: Map<string, File>): string {
+function generateDockerfileContent(
+  fields: DockerfileFields,
+  _uploadedFiles?: Map<string, File>,
+): string {
   const lines: string[] = [];
 
   lines.push(`FROM ${fields.baseImage || '<base-image>'}`);
@@ -119,7 +139,10 @@ function generateDockerfileContent(fields: DockerfileFields, _uploadedFiles?: Ma
     lines.push('');
   }
 
-  const ports = fields.exposePorts.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+  const ports = fields.exposePorts
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (ports.length > 0) {
     ports.forEach((p) => lines.push(`EXPOSE ${p}`));
     lines.push('');
@@ -148,11 +171,36 @@ type FormData = z.infer<typeof dockerfileSchema>;
 
 /* ── Instruction Type Config ── */
 
-const instrTypeOptions: { value: InstructionType; label: string; icon: React.ReactNode; desc: string }[] = [
-  { value: 'RUN', label: 'RUN', icon: <Terminal className="h-3.5 w-3.5" />, desc: '쉘 명령어 실행' },
-  { value: 'COPY_UPLOAD', label: 'COPY (파일 업로드)', icon: <Upload className="h-3.5 w-3.5" />, desc: '업로드한 파일을 이미지에 복사' },
-  { value: 'COPY_VOLUME', label: 'COPY (Volume)', icon: <HardDrive className="h-3.5 w-3.5" />, desc: 'AIPub Volume에서 파일 복사' },
-  { value: 'ENV', label: 'ENV', icon: <Variable className="h-3.5 w-3.5" />, desc: '환경 변수 설정' },
+const instrTypeOptions: {
+  value: InstructionType;
+  label: string;
+  icon: React.ReactNode;
+  desc: string;
+}[] = [
+  {
+    value: 'RUN',
+    label: 'RUN',
+    icon: <Terminal className="h-3.5 w-3.5" />,
+    desc: '쉘 명령어 실행',
+  },
+  {
+    value: 'COPY_UPLOAD',
+    label: 'COPY (파일 업로드)',
+    icon: <Upload className="h-3.5 w-3.5" />,
+    desc: '업로드한 파일을 이미지에 복사',
+  },
+  {
+    value: 'COPY_VOLUME',
+    label: 'COPY (Volume)',
+    icon: <HardDrive className="h-3.5 w-3.5" />,
+    desc: 'AIPub Volume에서 파일 복사',
+  },
+  {
+    value: 'ENV',
+    label: 'ENV',
+    icon: <Variable className="h-3.5 w-3.5" />,
+    desc: '환경 변수 설정',
+  },
 ];
 
 /* ── Main Component ── */
@@ -163,6 +211,8 @@ export default function DockerfileEditorPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { username, projects } = useAuth();
+  const { theme } = useTheme();
+  const monacoTheme = theme === 'dark' ? 'vs-dark' : 'vs-light';
   const dockerfileId = idParam ? Number(idParam) : undefined;
   const isEdit = dockerfileId !== undefined;
 
@@ -199,7 +249,11 @@ export default function DockerfileEditorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
-    register, handleSubmit, setValue, watch, formState: { errors },
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(dockerfileSchema),
     defaultValues: { name: '', description: '' },
@@ -276,9 +330,18 @@ export default function DockerfileEditorPage() {
   const addInstruction = (type: InstructionType) => {
     const instr: Instruction = { id: newId(), type };
     if (type === 'RUN') instr.command = '';
-    if (type === 'COPY_UPLOAD') { instr.uploadFileName = ''; instr.uploadDest = '/workspace/'; }
-    if (type === 'COPY_VOLUME') { instr.volumeName = ''; instr.volumePath = ''; instr.volumeDest = '/workspace/'; }
-    if (type === 'ENV') { instr.envPairs = [{ key: '', value: '' }]; }
+    if (type === 'COPY_UPLOAD') {
+      instr.uploadFileName = '';
+      instr.uploadDest = '/workspace/';
+    }
+    if (type === 'COPY_VOLUME') {
+      instr.volumeName = '';
+      instr.volumePath = '';
+      instr.volumeDest = '/workspace/';
+    }
+    if (type === 'ENV') {
+      instr.envPairs = [{ key: '', value: '' }];
+    }
     setFields((prev) => ({ ...prev, instructions: [...prev.instructions, instr] }));
     setShowAddInstr(false);
   };
@@ -339,7 +402,13 @@ export default function DockerfileEditorPage() {
       );
     } else {
       createMutation.mutate(
-        { name: data.name, description: data.description ?? '', content, project: selectedProjectId, username },
+        {
+          name: data.name,
+          description: data.description ?? '',
+          content,
+          project: selectedProjectId,
+          username,
+        },
         { onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`) },
       );
     }
@@ -349,9 +418,10 @@ export default function DockerfileEditorPage() {
     if (dockerfileId === undefined) return;
     // Volume 이름 → pvcName 변환
     // 우선순위: 다이얼로그 선택 > COPY_VOLUME 명령어 > COPY 감지 시 첫 번째 볼륨
-    let volName = buildContextVolume
-      || fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName)?.volumeName
-      || '';
+    let volName =
+      buildContextVolume ||
+      fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName)?.volumeName ||
+      '';
     if (!volName && hasCopyInstruction && volumes.length > 0) {
       volName = volumes[0].name;
     }
@@ -375,31 +445,34 @@ export default function DockerfileEditorPage() {
     );
   };
 
-  const hasCopyInstruction = fields.instructions.some((i) => i.type === 'COPY_UPLOAD' || i.type === 'COPY_VOLUME')
-    || /^COPY\s/m.test(content);
+  const hasCopyInstruction =
+    fields.instructions.some((i) => i.type === 'COPY_UPLOAD' || i.type === 'COPY_VOLUME') ||
+    /^COPY\s/m.test(content);
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   if (isEdit && isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-sm text-text-secondary">{t('common.loading')}</p>
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
     );
   }
 
   return (
     <div className="mx-auto w-full max-w-[1400px] flex flex-col h-full">
-      <h1 className="text-2xl font-bold text-text-primary mb-6">
+      <h1 className="text-xl font-semibold text-foreground mb-6">
         {isEdit ? `Dockerfile ${t('common.edit')}` : 'Create Dockerfile'}
       </h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 flex-1">
         {/* 기본 설정 */}
         <section>
-          <h2 className="text-lg font-bold text-text-primary mb-4">기본 설정</h2>
+          <h2 className="text-lg font-bold text-foreground mb-4">기본 설정</h2>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5 max-w-2xl">
-              <Label htmlFor="project">Project <span className="text-error">*</span></Label>
+              <Label htmlFor="project">
+                Project <span className="text-destructive">*</span>
+              </Label>
               {isEdit ? (
                 <Input id="project" value={selectedProjectId} disabled />
               ) : (
@@ -408,18 +481,24 @@ export default function DockerfileEditorPage() {
                     id="project"
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="flex h-11 w-full rounded-md border border-border-input bg-white px-3.5 py-1 text-base appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] cursor-pointer"
+                    className="flex h-11 w-full rounded-md border border-input bg-card px-3.5 py-1 text-base appearance-none outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px] cursor-pointer"
                   >
-                    {projects.map((p) => (<option key={p.name} value={p.name}>{p.name}</option>))}
+                    {projects.map((p) => (
+                      <option key={p.name} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70 pointer-events-none" />
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-1.5 max-w-2xl">
-              <Label htmlFor="name">Dockerfile 이름 <span className="text-error">*</span></Label>
+              <Label htmlFor="name">
+                Dockerfile 이름 <span className="text-destructive">*</span>
+              </Label>
               <Input id="name" placeholder="예: pytorch-cuda-base" {...register('name')} />
-              {errors.name && <p className="text-sm text-error">{errors.name.message}</p>}
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
             </div>
             <div className="flex flex-col gap-1.5 max-w-2xl">
               <Label htmlFor="description">설명</Label>
@@ -428,9 +507,11 @@ export default function DockerfileEditorPage() {
                 placeholder="Dockerfile에 대한 설명이나 용도를 입력하세요. (선택 사항)"
                 {...register('description')}
                 rows={3}
-                className="flex w-full rounded-md border border-border-input bg-transparent px-3.5 py-2.5 text-base text-text-primary shadow-xs transition-[color,box-shadow] outline-none placeholder:text-text-muted focus-within:border-border-focus focus-within:ring-primary/50 focus-within:ring-[3px] resize-y"
+                className="flex w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base text-foreground shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground/70 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] resize-y"
               />
-              {errors.description && <p className="text-sm text-error">{errors.description.message}</p>}
+              {errors.description && (
+                <p className="text-sm text-destructive">{errors.description.message}</p>
+              )}
             </div>
           </div>
         </section>
@@ -440,23 +521,29 @@ export default function DockerfileEditorPage() {
         {/* Dockerfile 설정 */}
         <section className="flex flex-col flex-1">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-text-primary">Dockerfile 설정</h2>
+            <h2 className="text-lg font-bold text-foreground">Dockerfile 설정</h2>
             <div className="flex rounded-lg border border-border overflow-hidden">
-              <button type="button" onClick={() => setMode('form')}
-                className={`px-5 py-2 text-sm font-medium transition-colors ${mode === 'form' ? 'bg-primary text-white' : 'bg-white text-text-secondary hover:bg-muted-bg'}`}>
+              <button
+                type="button"
+                onClick={() => setMode('form')}
+                className={`px-5 py-2 text-sm font-medium transition-colors ${mode === 'form' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+              >
                 입력 폼
               </button>
-              <button type="button" onClick={() => setMode('editor')}
-                className={`px-5 py-2 text-sm font-medium transition-colors ${mode === 'editor' ? 'bg-primary text-white' : 'bg-white text-text-secondary hover:bg-muted-bg'}`}>
+              <button
+                type="button"
+                onClick={() => setMode('editor')}
+                className={`px-5 py-2 text-sm font-medium transition-colors ${mode === 'editor' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+              >
                 에디터
               </button>
             </div>
           </div>
 
           {warnings.length > 0 && (
-            <div className="flex items-start gap-2 rounded-md border border-warning bg-warning-bg p-3 mb-4">
+            <div className="flex items-start gap-2 rounded-md border border-warning bg-warning/10 p-3 mb-4">
               <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-              <div className="text-sm text-text-primary">
+              <div className="text-sm text-foreground">
                 <p className="font-medium">{t('dockerfile.unsupportedDirective')}</p>
               </div>
             </div>
@@ -467,11 +554,13 @@ export default function DockerfileEditorPage() {
               {/* Left: Input Fields */}
               <div className="flex-1 flex flex-col gap-4">
                 {/* Base Image */}
-                <div className="rounded-lg border border-border bg-white p-4">
-                  <h3 className="text-base font-bold text-text-primary mb-1">
-                    베이스 이미지 <span className="text-error">*</span>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <h3 className="text-base font-bold text-foreground mb-1">
+                    베이스 이미지 <span className="text-destructive">*</span>
                   </h3>
-                  <p className="text-sm text-text-secondary mb-3">빌드의 기반이 되는 Base 이미지를 선택해 주세요.</p>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    빌드의 기반이 되는 Base 이미지를 선택해 주세요.
+                  </p>
                   <div className="flex gap-2">
                     <Input
                       placeholder="예: harbor.example.com/base/python:3.11-cuda12.1"
@@ -482,38 +571,64 @@ export default function DockerfileEditorPage() {
                         if (v.trim()) setBaseImageError('');
                       }}
                       aria-invalid={!!baseImageError}
-                      className={`flex-1 ${baseImageError ? 'border-error focus-within:border-error focus-within:ring-error/40' : ''}`}
+                      className={`flex-1 ${baseImageError ? 'border-destructive focus-within:border-destructive focus-within:ring-destructive/40' : ''}`}
                     />
-                    <Button type="button" variant="outline" className="shrink-0" onClick={() => setShowImageSelector(true)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => setShowImageSelector(true)}
+                    >
                       가져오기
                     </Button>
                   </div>
                   {baseImageError && (
-                    <p className="text-sm text-error mt-2">{baseImageError}</p>
+                    <p className="text-sm text-destructive mt-2">{baseImageError}</p>
                   )}
                 </div>
 
                 {/* Uploaded Files */}
-                <div className="rounded-lg border border-border bg-white p-4">
+                <div className="rounded-lg border border-border bg-card p-4">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-base font-bold text-text-primary">업로드 파일</h3>
-                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    <h3 className="text-base font-bold text-foreground">업로드 파일</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       <Upload className="h-4 w-4" />
                       파일 추가
                     </Button>
-                    <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
                   </div>
-                  <p className="text-sm text-text-secondary mb-3">
-                    COPY 명령어에서 사용할 파일을 업로드하세요. 업로드된 파일은 빌드 컨텍스트에 포함됩니다.
+                  <p className="text-sm text-muted-foreground mb-3">
+                    COPY 명령어에서 사용할 파일을 업로드하세요. 업로드된 파일은 빌드 컨텍스트에
+                    포함됩니다.
                   </p>
                   {uploadedFileNames.length === 0 ? (
-                    <p className="text-sm text-text-muted py-2">업로드된 파일이 없습니다.</p>
+                    <p className="text-sm text-muted-foreground/70 py-2">
+                      업로드된 파일이 없습니다.
+                    </p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {uploadedFileNames.map((name) => (
-                        <span key={name} className="inline-flex items-center gap-1.5 bg-muted-bg rounded-md px-3 py-1.5 text-sm">
+                        <span
+                          key={name}
+                          className="inline-flex items-center gap-1.5 bg-muted rounded-md px-3 py-1.5 text-sm"
+                        >
                           {name}
-                          <button type="button" onClick={() => removeUploadedFile(name)} className="text-error hover:text-error/80">
+                          <button
+                            type="button"
+                            onClick={() => removeUploadedFile(name)}
+                            className="text-destructive hover:text-destructive/80"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </span>
@@ -523,34 +638,42 @@ export default function DockerfileEditorPage() {
                 </div>
 
                 {/* Instruction Blocks */}
-                <div className="rounded-lg border border-border bg-white p-4">
+                <div className="rounded-lg border border-border bg-card p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h3 className="text-base font-bold text-text-primary">명령어 블록</h3>
-                      <p className="text-sm text-text-secondary mt-1">
+                      <h3 className="text-base font-bold text-foreground">명령어 블록</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
                         RUN, COPY, ENV 명령어를 추가하고 순서를 변경할 수 있습니다.
                       </p>
                     </div>
                     <div className="relative">
-                      <Button type="button" variant="outline" size="sm" onClick={() => setShowAddInstr((v) => !v)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddInstr((v) => !v)}
+                      >
                         <Plus className="h-3.5 w-3.5" />
                         명령어 추가
                       </Button>
                       {showAddInstr && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowAddInstr(false)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border bg-white shadow-lg py-1">
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowAddInstr(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border bg-card shadow-lg py-1">
                             {instrTypeOptions.map((opt) => (
                               <button
                                 key={opt.value}
                                 type="button"
-                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-base hover:bg-muted-bg transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-base hover:bg-muted transition-colors text-left"
                                 onClick={() => addInstruction(opt.value)}
                               >
                                 <span className="text-primary">{opt.icon}</span>
                                 <div>
-                                  <div className="font-medium text-text-primary">{opt.label}</div>
-                                  <div className="text-xs text-text-muted">{opt.desc}</div>
+                                  <div className="font-medium text-foreground">{opt.label}</div>
+                                  <div className="text-xs text-muted-foreground/70">{opt.desc}</div>
                                 </div>
                               </button>
                             ))}
@@ -561,7 +684,7 @@ export default function DockerfileEditorPage() {
                   </div>
 
                   {fields.instructions.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-text-muted border border-dashed border-border rounded-md">
+                    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground/70 border border-dashed border-border rounded-md">
                       "명령어 추가" 버튼으로 RUN, COPY, ENV 블록을 추가하세요.
                     </div>
                   ) : (
@@ -585,23 +708,32 @@ export default function DockerfileEditorPage() {
                 </div>
 
                 {/* Bottom: WORKDIR, EXPOSE, CMD */}
-                <div className="rounded-lg border border-border bg-white p-4">
-                  <h3 className="text-base font-bold text-text-primary mb-3">실행 설정</h3>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <h3 className="text-base font-bold text-foreground mb-3">실행 설정</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <Label>WORKDIR</Label>
-                      <Input placeholder="/workspace" value={fields.workdir}
-                        onChange={(e) => setFields((p) => ({ ...p, workdir: e.target.value }))} />
+                      <Input
+                        placeholder="/workspace"
+                        value={fields.workdir}
+                        onChange={(e) => setFields((p) => ({ ...p, workdir: e.target.value }))}
+                      />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label>EXPOSE (포트)</Label>
-                      <Input placeholder="예: 8888 8080" value={fields.exposePorts}
-                        onChange={(e) => setFields((p) => ({ ...p, exposePorts: e.target.value }))} />
+                      <Input
+                        placeholder="예: 8888 8080"
+                        value={fields.exposePorts}
+                        onChange={(e) => setFields((p) => ({ ...p, exposePorts: e.target.value }))}
+                      />
                     </div>
                     <div className="col-span-2 flex flex-col gap-1.5">
                       <Label>CMD (실행 명령)</Label>
-                      <Input placeholder="예: bash" value={fields.cmd}
-                        onChange={(e) => setFields((p) => ({ ...p, cmd: e.target.value }))} />
+                      <Input
+                        placeholder="예: bash"
+                        value={fields.cmd}
+                        onChange={(e) => setFields((p) => ({ ...p, cmd: e.target.value }))}
+                      />
                     </div>
                   </div>
                 </div>
@@ -609,41 +741,88 @@ export default function DockerfileEditorPage() {
 
               {/* Right: Preview */}
               <div className="flex-1 flex flex-col">
-                <span className="text-sm font-medium text-text-secondary mb-2">Dockerfile 미리보기</span>
+                <span className="text-sm font-medium text-muted-foreground mb-2">
+                  Dockerfile 미리보기
+                </span>
                 <div className="flex-1 min-h-[400px] border border-border rounded-lg overflow-hidden">
-                  <Editor height="100%" defaultLanguage="dockerfile" value={content}
-                    onMount={handleEditorMount} theme="vs-light"
-                    options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, fontFamily: 'var(--font-mono)', lineNumbers: 'on', scrollBeyondLastLine: false, wordWrap: 'on', tabSize: 2, padding: { top: 12 }, renderLineHighlight: 'none' }} />
+                  <Editor
+                    height="100%"
+                    defaultLanguage="dockerfile"
+                    value={content}
+                    onMount={handleEditorMount}
+                    theme={monacoTheme}
+                    options={{
+                      readOnly: true,
+                      minimap: { enabled: false },
+                      fontSize: 12,
+                      fontFamily: 'var(--font-mono)',
+                      lineNumbers: 'on',
+                      scrollBeyondLastLine: false,
+                      wordWrap: 'on',
+                      tabSize: 2,
+                      padding: { top: 12 },
+                      renderLineHighlight: 'none',
+                    }}
+                  />
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex-1 min-h-[400px] border border-border rounded-lg overflow-hidden">
-              <Editor height="100%" defaultLanguage="dockerfile" value={content}
-                onChange={handleEditorChange} onMount={handleEditorMount} theme="vs-light"
-                options={{ minimap: { enabled: false }, fontSize: 13, fontFamily: 'var(--font-mono)', lineNumbers: 'on', scrollBeyondLastLine: false, wordWrap: 'on', tabSize: 2, padding: { top: 12 }, renderLineHighlight: 'line' }} />
+              <Editor
+                height="100%"
+                defaultLanguage="dockerfile"
+                value={content}
+                onChange={handleEditorChange}
+                onMount={handleEditorMount}
+                theme={monacoTheme}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  lineNumbers: 'on',
+                  scrollBeyondLastLine: false,
+                  wordWrap: 'on',
+                  tabSize: 2,
+                  padding: { top: 12 },
+                  renderLineHighlight: 'line',
+                }}
+              />
             </div>
           )}
         </section>
 
         {/* 하단 액션 바 */}
         <div className="flex justify-end gap-3 pt-4 border-t border-border">
-          <Button type="button" variant="outline" onClick={() => navigate(`/dockerfiles?projectId=${selectedProjectId}`)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(`/dockerfiles?projectId=${selectedProjectId}`)}
+          >
             Cancel
           </Button>
           {isEdit && (
-            <Button type="button" variant="outline" onClick={() => {
-              // COPY가 있고 볼륨 미선택 시 자동 감지
-              if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
-                const volInstr = fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName);
-                setBuildContextVolume(volInstr?.volumeName || volumes[0].name);
-              }
-              setShowBuildDialog(true);
-            }} disabled={warnings.length > 0}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                // COPY가 있고 볼륨 미선택 시 자동 감지
+                if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
+                  const volInstr = fields.instructions.find(
+                    (i) => i.type === 'COPY_VOLUME' && i.volumeName,
+                  );
+                  setBuildContextVolume(volInstr?.volumeName || volumes[0].name);
+                }
+                setShowBuildDialog(true);
+              }}
+              disabled={warnings.length > 0}
+            >
               <Play className="h-4 w-4" /> 빌드 실행
             </Button>
           )}
-          <Button type="submit" disabled={isSaving}>{isEdit ? t('common.save') : 'Create'}</Button>
+          <Button type="submit" disabled={isSaving}>
+            {isEdit ? t('common.save') : 'Create'}
+          </Button>
         </div>
       </form>
 
@@ -662,22 +841,32 @@ export default function DockerfileEditorPage() {
                 <select
                   value={selectedImageHub}
                   onChange={(e) => setSelectedImageHub(e.target.value)}
-                  className="flex h-11 w-full rounded-md border border-border-input bg-white px-3.5 py-1 text-base appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] cursor-pointer"
+                  className="flex h-11 w-full rounded-md border border-input bg-card px-3.5 py-1 text-base appearance-none outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px] cursor-pointer"
                 >
                   {imageHubs.map((hub) => (
-                    <option key={hub} value={hub}>{hub}</option>
+                    <option key={hub} value={hub}>
+                      {hub}
+                    </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>{t('build.targetImage')}</Label>
-              <Input value={buildImageName} onChange={(e) => setBuildImageName(e.target.value)} placeholder={`${HARBOR_URL}/image-hub/image-name`} />
+              <Input
+                value={buildImageName}
+                onChange={(e) => setBuildImageName(e.target.value)}
+                placeholder={`${HARBOR_URL}/image-hub/image-name`}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>{t('build.tag')}</Label>
-              <Input value={buildTag} onChange={(e) => setBuildTag(e.target.value)} placeholder={t('build.tagPlaceholder')} />
+              <Input
+                value={buildTag}
+                onChange={(e) => setBuildTag(e.target.value)}
+                placeholder={t('build.tagPlaceholder')}
+              />
             </div>
 
             {/* 빌드 컨텍스트 (COPY 사용 시) */}
@@ -686,19 +875,23 @@ export default function DockerfileEditorPage() {
                 <hr className="border-border" />
                 <div className="flex flex-col gap-1.5">
                   <Label>빌드 컨텍스트 Volume</Label>
-                  <p className="text-sm text-text-secondary">COPY 명령어에서 참조하는 파일이 있는 Volume을 선택하세요.</p>
+                  <p className="text-sm text-muted-foreground">
+                    COPY 명령어에서 참조하는 파일이 있는 Volume을 선택하세요.
+                  </p>
                   <div className="relative">
                     <select
                       value={buildContextVolume}
                       onChange={(e) => setBuildContextVolume(e.target.value)}
-                      className="flex h-11 w-full rounded-md border border-border-input bg-white px-3.5 py-1 text-base appearance-none outline-none focus:border-border-focus focus:ring-primary/50 focus:ring-[3px] cursor-pointer"
+                      className="flex h-11 w-full rounded-md border border-input bg-card px-3.5 py-1 text-base appearance-none outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px] cursor-pointer"
                     >
                       <option value="">선택 안함</option>
                       {volumes.map((v) => (
-                        <option key={v.name} value={v.name}>{v.name} ({v.pvcName})</option>
+                        <option key={v.name} value={v.name}>
+                          {v.name} ({v.pvcName})
+                        </option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted pointer-events-none" />
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
                   </div>
                 </div>
                 {buildContextVolume && (
@@ -715,8 +908,13 @@ export default function DockerfileEditorPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBuildDialog(false)}>{t('common.cancel')}</Button>
-            <Button onClick={handleBuild} disabled={runBuildMutation.isPending || !buildImageName || !buildTag}>
+            <Button variant="outline" onClick={() => setShowBuildDialog(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleBuild}
+              disabled={runBuildMutation.isPending || !buildImageName || !buildTag}
+            >
               <Play className="h-4 w-4" /> {t('build.run')}
             </Button>
           </DialogFooter>
@@ -724,11 +922,15 @@ export default function DockerfileEditorPage() {
       </Dialog>
 
       {/* Image Selector */}
-      <ImageSelector projectId={selectedProjectId} open={showImageSelector} onOpenChange={setShowImageSelector}
+      <ImageSelector
+        projectId={selectedProjectId}
+        open={showImageSelector}
+        onOpenChange={setShowImageSelector}
         onSelect={(imageRef) => {
           setFields((p) => ({ ...p, baseImage: imageRef }));
           if (imageRef.trim()) setBaseImageError('');
-        }} />
+        }}
+      />
     </div>
   );
 }
@@ -738,8 +940,14 @@ export default function DockerfileEditorPage() {
 // AIPubVolume type used via volumes prop
 
 function InstructionBlock({
-  instr, idx, total, uploadedFileNames, namespace,
-  onUpdate, onRemove, onMove,
+  instr,
+  idx,
+  total,
+  uploadedFileNames,
+  namespace,
+  onUpdate,
+  onRemove,
+  onMove,
 }: {
   instr: Instruction;
   idx: number;
@@ -763,45 +971,76 @@ function InstructionBlock({
   }[instr.type];
 
   return (
-    <div className={`rounded-md border border-border bg-muted-bg/30 p-3.5 border-l-4 ${typeBgColor}`}>
+    <div className={`rounded-md border border-border bg-muted/30 p-3.5 border-l-4 ${typeBgColor}`}>
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
           <span className="text-primary">{typeIcon}</span>
-          <span className="text-sm font-bold text-text-primary">{typeLabel}</span>
-          <span className="text-xs text-text-muted">#{idx + 1}</span>
+          <span className="text-sm font-bold text-foreground">{typeLabel}</span>
+          <span className="text-xs text-muted-foreground/70">#{idx + 1}</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <button type="button" disabled={idx === 0} onClick={() => onMove(-1)}
-            className="p-1 rounded hover:bg-white disabled:opacity-30 text-text-secondary"><ChevronUp className="h-4 w-4" /></button>
-          <button type="button" disabled={idx === total - 1} onClick={() => onMove(1)}
-            className="p-1 rounded hover:bg-white disabled:opacity-30 text-text-secondary"><ChevronDown className="h-4 w-4" /></button>
-          <button type="button" onClick={onRemove}
-            className="p-1 rounded hover:bg-white text-error"><Trash2 className="h-4 w-4" /></button>
+          <button
+            type="button"
+            disabled={idx === 0}
+            onClick={() => onMove(-1)}
+            className="p-1 rounded hover:bg-card disabled:opacity-30 text-muted-foreground"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            disabled={idx === total - 1}
+            onClick={() => onMove(1)}
+            className="p-1 rounded hover:bg-card disabled:opacity-30 text-muted-foreground"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="p-1 rounded hover:bg-card text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
       {/* Type-specific fields */}
       {instr.type === 'RUN' && (
-        <Input placeholder="예: apt-get update && apt-get install -y git" value={instr.command ?? ''}
-          onChange={(e) => onUpdate({ command: e.target.value })} className="text-sm font-mono" />
+        <Input
+          placeholder="예: apt-get update && apt-get install -y git"
+          value={instr.command ?? ''}
+          onChange={(e) => onUpdate({ command: e.target.value })}
+          className="text-sm font-mono"
+        />
       )}
 
       {instr.type === 'COPY_UPLOAD' && (
         <div className="flex gap-2 items-end">
           <div className="flex-1 flex flex-col gap-1">
-            <span className="text-xs text-text-secondary">소스 파일</span>
-            <select value={instr.uploadFileName ?? ''}
+            <span className="text-xs text-muted-foreground">소스 파일</span>
+            <select
+              value={instr.uploadFileName ?? ''}
               onChange={(e) => onUpdate({ uploadFileName: e.target.value })}
-              className="h-10 rounded-md border border-border-input bg-white px-2.5 text-sm outline-none">
+              className="h-10 rounded-md border border-input bg-card px-2.5 text-sm outline-none"
+            >
               <option value="">파일 선택...</option>
-              {uploadedFileNames.map((n) => (<option key={n} value={n}>{n}</option>))}
+              {uploadedFileNames.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
             </select>
           </div>
-          <Copy className="h-4 w-4 text-text-muted mb-2.5 shrink-0" />
+          <Copy className="h-4 w-4 text-muted-foreground/70 mb-2.5 shrink-0" />
           <div className="flex-1 flex flex-col gap-1">
-            <span className="text-xs text-text-secondary">대상 경로</span>
-            <Input placeholder="/workspace/" value={instr.uploadDest ?? ''}
-              onChange={(e) => onUpdate({ uploadDest: e.target.value })} className="h-10 text-sm" />
+            <span className="text-xs text-muted-foreground">대상 경로</span>
+            <Input
+              placeholder="/workspace/"
+              value={instr.uploadDest ?? ''}
+              onChange={(e) => onUpdate({ uploadDest: e.target.value })}
+              className="h-10 text-sm"
+            />
           </div>
         </div>
       )}
@@ -810,34 +1049,49 @@ function InstructionBlock({
         <div className="flex flex-col gap-2">
           <div className="flex gap-2 items-end">
             <div className="flex-1 flex flex-col gap-1">
-              <span className="text-xs text-text-secondary">AIPub Volume / 파일 경로</span>
+              <span className="text-xs text-muted-foreground">AIPub Volume / 파일 경로</span>
               <div className="flex gap-1.5">
                 <Input
                   placeholder="Volume:경로 (예: data-storage:/data/requirements.txt)"
-                  value={instr.volumeName && instr.volumePath ? `${instr.volumeName}:${instr.volumePath}` : ''}
+                  value={
+                    instr.volumeName && instr.volumePath
+                      ? `${instr.volumeName}:${instr.volumePath}`
+                      : ''
+                  }
                   readOnly
-                  className="h-10 text-sm flex-1 bg-muted-bg/30"
+                  className="h-10 text-sm flex-1 bg-muted/30"
                 />
-                <Button type="button" variant="outline" size="sm" className="h-10 shrink-0"
-                  onClick={() => setShowBrowser(true)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-10 shrink-0"
+                  onClick={() => setShowBrowser(true)}
+                >
                   찾아보기
                 </Button>
               </div>
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            <Copy className="h-4 w-4 text-text-muted shrink-0" />
+            <Copy className="h-4 w-4 text-muted-foreground/70 shrink-0" />
             <div className="flex-1 flex flex-col gap-1">
-              <span className="text-xs text-text-secondary">대상 경로</span>
-              <Input placeholder="/workspace/" value={instr.volumeDest ?? ''}
-                onChange={(e) => onUpdate({ volumeDest: e.target.value })} className="h-10 text-sm" />
+              <span className="text-xs text-muted-foreground">대상 경로</span>
+              <Input
+                placeholder="/workspace/"
+                value={instr.volumeDest ?? ''}
+                onChange={(e) => onUpdate({ volumeDest: e.target.value })}
+                className="h-10 text-sm"
+              />
             </div>
           </div>
           <VolumeBrowser
             namespace={namespace}
             open={showBrowser}
             onOpenChange={setShowBrowser}
-            onSelect={(volName, filePath) => onUpdate({ volumeName: volName, volumePath: filePath })}
+            onSelect={(volName, filePath) =>
+              onUpdate({ volumeName: volName, volumePath: filePath })
+            }
           />
         </div>
       )}
@@ -856,26 +1110,40 @@ function InstructionBlock({
             };
             return (
               <div key={pidx} className="flex gap-2 items-center">
-                <Input placeholder="Key" value={pair.key}
+                <Input
+                  placeholder="Key"
+                  value={pair.key}
                   onChange={(e) => updatePair({ key: e.target.value })}
-                  className="flex-1 h-10 text-sm font-mono" />
-                <span className="text-text-muted text-sm">=</span>
-                <Input placeholder="Value" value={pair.value}
+                  className="flex-1 h-10 text-sm font-mono"
+                />
+                <span className="text-muted-foreground/70 text-sm">=</span>
+                <Input
+                  placeholder="Value"
+                  value={pair.value}
                   onChange={(e) => updatePair({ value: e.target.value })}
-                  className="flex-1 h-10 text-sm font-mono" />
-                <button type="button" onClick={removePair}
+                  className="flex-1 h-10 text-sm font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={removePair}
                   disabled={pairs.length <= 1}
-                  className="p-1.5 rounded hover:bg-white text-error disabled:opacity-30 disabled:cursor-not-allowed shrink-0">
+                  className="p-1.5 rounded hover:bg-card text-destructive disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             );
           })}
-          <Button type="button" variant="outline" size="sm" className="self-start"
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
             onClick={() => {
               const next = [...(instr.envPairs ?? []), { key: '', value: '' }];
               onUpdate({ envPairs: next });
-            }}>
+            }}
+          >
             <Plus className="h-3.5 w-3.5" />
             key-value 추가
           </Button>

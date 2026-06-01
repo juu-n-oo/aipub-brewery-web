@@ -6,8 +6,13 @@ const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>
     return (
       <input
         type={type}
+        data-slot="input"
         className={cn(
-          'flex h-11 w-full min-w-0 rounded-md border border-border-input bg-transparent px-3.5 py-1 text-base text-text-primary shadow-xs transition-[color,box-shadow] outline-none placeholder:text-text-muted selection:bg-primary selection:text-primary-foreground focus-within:border-border-focus focus-within:ring-primary/50 focus-within:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none',
+          'placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground',
+          'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+          'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
+          'disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30',
           className,
         )}
         ref={ref}
