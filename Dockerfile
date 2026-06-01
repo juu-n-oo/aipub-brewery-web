@@ -7,9 +7,13 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+RUN rm -f .env .env.local .env.production
 
 ARG VITE_API_BASE_URL=""
 ARG VITE_HARBOR_URL=""
+
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_HARBOR_URL=${VITE_HARBOR_URL}
 
 RUN npm run build
 
