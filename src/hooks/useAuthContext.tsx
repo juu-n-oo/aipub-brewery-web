@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // selfsubjectreviews API로 인증 상태 및 username 조회
       const self = await getSelfSubjectReview();
       if (!self.isAuthenticated) {
-        window.location.href = '/login';
+        window.location.href = '/welcome';
         return;
       }
       const username = self.username;

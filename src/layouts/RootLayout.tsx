@@ -164,7 +164,7 @@ function ProfileMenu() {
     } catch {
       // ignore
     }
-    window.location.href = '/login';
+    window.location.href = '/welcome';
   };
   return (
     <DropdownMenu>

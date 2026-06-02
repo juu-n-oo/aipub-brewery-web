@@ -23,21 +23,24 @@ function Lazy({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const router = createBrowserRouter([
-  {
-    path: '/login',
-    element: <Lazy><LoginPage /></Lazy>,
-  },
-  {
-    path: '/',
-    element: <RootLayout />,
-    children: [
-      { index: true, element: <Lazy><HomePage /></Lazy> },
-      { path: 'dockerfiles', element: <Lazy><DockerfileListPage /></Lazy> },
-      { path: 'dockerfiles/new', element: <Lazy><DockerfileEditorPage /></Lazy> },
-      { path: 'dockerfiles/:id/edit', element: <Lazy><DockerfileEditorPage /></Lazy> },
-      { path: 'builds', element: <Lazy><BuildListPage /></Lazy> },
-      { path: 'builds/:namespace/:name', element: <Lazy><BuildDetailPage /></Lazy> },
-    ],
-  },
-]);
+export const router = createBrowserRouter(
+  [
+    {
+      path: '/login',
+      element: <Lazy><LoginPage /></Lazy>,
+    },
+    {
+      path: '/',
+      element: <RootLayout />,
+      children: [
+        { index: true, element: <Lazy><HomePage /></Lazy> },
+        { path: 'dockerfiles', element: <Lazy><DockerfileListPage /></Lazy> },
+        { path: 'dockerfiles/new', element: <Lazy><DockerfileEditorPage /></Lazy> },
+        { path: 'dockerfiles/:id/edit', element: <Lazy><DockerfileEditorPage /></Lazy> },
+        { path: 'builds', element: <Lazy><BuildListPage /></Lazy> },
+        { path: 'builds/:namespace/:name', element: <Lazy><BuildDetailPage /></Lazy> },
+      ],
+    },
+  ],
+  { basename: '/dockerizer' },
+);

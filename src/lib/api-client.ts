@@ -24,7 +24,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   });
 
   if (response.status === 401) {
-    window.location.href = '/login';
+    window.location.href = '/welcome';
     throw new Error('Unauthorized');
   }
 

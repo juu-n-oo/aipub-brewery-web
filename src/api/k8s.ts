@@ -23,7 +23,7 @@ async function k8sRequest<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (response.status === 401) {
-    window.location.href = '/login';
+    window.location.href = '/welcome';
     throw new Error('Unauthorized');
   }
 

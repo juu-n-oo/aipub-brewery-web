@@ -1,14 +1,15 @@
 # dockerizer-web API 아키텍처
 
 > 작성일: 2026-06-01  
+> 최종 수정: 2026-06-02  
 > 범위: 프론트엔드 API 클라이언트 구조 및 호출 패턴
 
 ---
 
-## 1. 단일 도메인
+## 1. 단일 도메인 · Sub Path 배포
 
-프론트엔드의 모든 API 요청은 **같은 도메인(dockerizer Ingress)**으로 향한다.
-Ingress가 경로에 따라 dockerizer backend 또는 AIPub backend로 라우팅한다.
+프론트엔드는 **AIPub과 동일한 도메인**(`aipub.cluster10.idc1.ten1010.io`)의 sub path `/dockerizer`에서 서빙된다.
+API 요청은 같은 도메인의 `/api/v1alpha1`로 보내며, AIPub Ingress가 리소스 경로에 따라 dockerizer backend 또는 AIPub backend로 라우팅한다.
 
 ```typescript
 // src/lib/api-client.ts — dockerizer backend 엔드포인트
@@ -21,9 +22,11 @@ const K8S_PROXY = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
 const LOGIN_URL = '/api/v1alpha1/login';
 ```
 
+- Vite `base: '/dockerizer/'` — 정적 자산 경로가 `/dockerizer/assets/...`
+- React Router `basename: '/dockerizer'` — 페이지 라우팅이 `/dockerizer/dockerfiles`, `/dockerizer/builds` 등
 - 모든 요청에 `credentials: 'include'` — AIPub 쿠키 자동 포함
-- 401 응답 시 `/login`으로 리다이렉트
-- 프론트엔드는 요청이 어떤 백엔드로 가는지 알 필요 없음 (Ingress가 처리)
+- 401 응답 시 `/welcome`으로 리다이렉트 (AIPub 로그인 페이지)
+- API 경로는 변경 없음 — 프론트엔드는 요청이 어떤 백엔드로 가는지 알 필요 없음 (Ingress가 처리)
 
 ## 2. API 클라이언트 구조
 
@@ -113,16 +116,20 @@ POST /api/v1alpha1/logout             (RootLayout에서 호출)
 ## 5. 개발 환경 프록시 (`vite.config.ts`)
 
 ```typescript
-server: {
-  port: 3000,
-  proxy: {
-    '/api': {
-      target: 'http://localhost:8080',
-      changeOrigin: true,
+{
+  base: '/dockerizer/',
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
 }
 ```
 
-개발 환경에서는 vite 프록시가 모든 `/api` 요청을 `localhost:8080`으로 보낸다.
-Ingress 라우팅이 없으므로, 개발 시에는 AIPub backend도 같은 포트에서 실행하거나 별도 프록시 설정이 필요하다.
+- `base: '/dockerizer/'` — 프로덕션과 동일한 sub path 환경 재현
+- 개발 환경에서는 vite 프록시가 모든 `/api` 요청을 `localhost:8080`으로 보낸다.
+- Ingress 라우팅이 없으므로, 개발 시에는 AIPub backend도 같은 포트에서 실행하거나 별도 프록시 설정이 필요하다.

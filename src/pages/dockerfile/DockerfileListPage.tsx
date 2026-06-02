@@ -68,7 +68,8 @@ export default function DockerfileListPage() {
       (df) =>
         df.name.toLowerCase().includes(q) ||
         df.username.toLowerCase().includes(q) ||
-        df.project.toLowerCase().includes(q),
+        df.project.toLowerCase().includes(q) ||
+        df.baseImage.toLowerCase().includes(q),
     );
   }, [allDockerfiles, searchQuery]);
 
@@ -206,6 +207,7 @@ export default function DockerfileListPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Owner</TableHead>
+                <TableHead>Base Image</TableHead>
                 <TableHead>Creation Time</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -229,6 +231,9 @@ export default function DockerfileListPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{df.project}</TableCell>
                   <TableCell className="text-muted-foreground">{df.username}</TableCell>
+                  <TableCell className="max-w-[240px] truncate text-muted-foreground" title={df.baseImage}>
+                    {df.baseImage}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatCreatedAt(df.createdAt)}
                   </TableCell>
