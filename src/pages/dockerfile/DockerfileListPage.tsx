@@ -231,8 +231,10 @@ export default function DockerfileListPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{df.project}</TableCell>
                   <TableCell className="text-muted-foreground">{df.username}</TableCell>
-                  <TableCell className="max-w-[240px] truncate text-muted-foreground" title={df.baseImage}>
-                    {shortenImageName(df.baseImage)}
+                  <TableCell className="max-w-[240px] text-muted-foreground">
+                    <span className="block truncate" title={df.baseImage}>
+                      {shortenImageName(df.baseImage)}
+                    </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatCreatedAt(df.createdAt)}
