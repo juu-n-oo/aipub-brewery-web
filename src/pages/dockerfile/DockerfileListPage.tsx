@@ -232,7 +232,7 @@ export default function DockerfileListPage() {
                   <TableCell className="text-muted-foreground">{df.project}</TableCell>
                   <TableCell className="text-muted-foreground">{df.username}</TableCell>
                   <TableCell className="max-w-[240px] truncate text-muted-foreground" title={df.baseImage}>
-                    {df.baseImage}
+                    {shortenImageName(df.baseImage)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatCreatedAt(df.createdAt)}
@@ -348,6 +348,12 @@ function PageBtn({
       {children}
     </button>
   );
+}
+
+function shortenImageName(fullImage: string): string {
+  // "registry.host/project/image:tag" → "image:tag"
+  const parts = fullImage.split('/');
+  return parts[parts.length - 1];
 }
 
 function formatCreatedAt(dateStr: string): string {
