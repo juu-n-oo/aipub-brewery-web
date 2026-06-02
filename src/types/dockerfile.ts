@@ -15,7 +15,6 @@ export interface Dockerfile {
 
 export interface DockerfileCreateRequest {
   project: string;
-  username: string;
   name: string;
   description?: string;
   content: string;

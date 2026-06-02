@@ -231,7 +231,7 @@ export default function DockerfileEditorPage() {
   const { id: idParam } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { username, projects } = useAuth();
+  const { projects } = useAuth();
   const { theme } = useTheme();
   const { toast } = useToast();
   const monacoTheme = theme === 'dark' ? 'vs-dark' : 'vs-light';
@@ -266,9 +266,7 @@ export default function DockerfileEditorPage() {
   const [buildContextSubPath, setBuildContextSubPath] = useState('');
   // "생성 후 빌드" 의도 기억: true 이면 빌드 다이얼로그 확인 시 생성→빌드를 연속 수행한다.
   const [buildAfterCreate, setBuildAfterCreate] = useState(false);
-  // 편집(EDIT) 진입 시에는 기존 content 를 그대로 보존하기 위해 에디터 모드로 시작한다.
-  // (form 모드는 fields → content 동기화가 일어나 본문이 덮어써질 수 있음)
-  const [mode, setMode] = useState<'form' | 'editor'>(isEdit ? 'editor' : 'form');
+  const [mode, setMode] = useState<'form' | 'editor'>('form');
   const [baseImageError, setBaseImageError] = useState('');
   // 초기 하이드레이션(EDIT 시 기존 데이터 주입)이 끝났는지 추적한다.
   // 이 플래그가 false 인 동안 form↔content 동기화 effect 가 실행되지 않도록 막아
@@ -475,7 +473,6 @@ export default function DockerfileEditorPage() {
           content,
           baseImage,
           project: selectedProjectId,
-          username,
         },
         { onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`) },
       );
@@ -529,7 +526,6 @@ export default function DockerfileEditorPage() {
         content,
         baseImage,
         project: selectedProjectId,
-        username,
       },
       {
         onSuccess: (created) => {
