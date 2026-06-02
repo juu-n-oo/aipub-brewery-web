@@ -32,6 +32,7 @@ import {
   TableCell,
 } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/Tooltip';
 import {
   Dialog,
   DialogContent,
@@ -232,9 +233,14 @@ export default function DockerfileListPage() {
                   <TableCell className="text-muted-foreground">{df.project}</TableCell>
                   <TableCell className="text-muted-foreground">{df.username}</TableCell>
                   <TableCell className="max-w-[240px] text-muted-foreground">
-                    <span className="block truncate" title={df.baseImage}>
-                      {shortenImageName(df.baseImage)}
-                    </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="block truncate">
+                          {shortenImageName(df.baseImage)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{df.baseImage}</TooltipContent>
+                    </Tooltip>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatCreatedAt(df.createdAt)}
