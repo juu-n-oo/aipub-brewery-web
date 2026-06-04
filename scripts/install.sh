@@ -134,6 +134,20 @@ deploy_helm_chart() {
     if [ $? -eq 0 ]; then
         log_success "${chart_name} deployed successfully"
 
+        # 기존 릴리스 업그레이드면 pod 를 명시적으로 재시작한다.
+        # 이미지 태그가 동일하면 helm 은 Deployment 를 새로 굴리지 않아 pod 가
+        # 재생성되지 않으므로(이미지 재pull 안 됨), pullPolicy: Always 와 함께
+        # 최신 이미지를 반영하려면 rollout restart 가 필요하다.
+        if [ "$is_upgrade" = true ]; then
+            log_info "Restarting workloads for existing release ${chart_name}..."
+            if sudo kubectl rollout restart deployment -n ${NAMESPACE} -l "app.kubernetes.io/instance=${chart_name}"; then
+                sudo kubectl rollout status deployment -n ${NAMESPACE} -l "app.kubernetes.io/instance=${chart_name}" --timeout=300s || true
+                log_success "${chart_name} workloads restarted"
+            else
+                log_warn "No matching workloads to restart for ${chart_name}"
+            fi
+        fi
+
         sudo helm get manifest -n ${NAMESPACE} ${chart_name} > "${after_file}"
         sudo helm get values -n ${NAMESPACE} ${chart_name} > "${backup_dir}/values-after.yaml"
 
