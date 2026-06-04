@@ -624,17 +624,8 @@ export default function DockerfileEditorPage() {
   };
 
   const handleBuild = () => {
-    // Volume 이름 → pvcName 변환
-    // 우선순위: 다이얼로그 선택 > COPY_VOLUME 명령어 > COPY 감지 시 첫 번째 볼륨
-    let volName =
-      buildContextVolume ||
-      fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName)?.volumeName ||
-      '';
-    if (!volName && hasCopyInstruction && volumes.length > 0) {
-      volName = volumes[0].name;
-    }
-    const selectedVol = volumes.find((v) => v.name === volName);
-    const pvcName = selectedVol?.pvcName;
+    // 빌드 컨텍스트 Volume → PVC (해석 로직은 buildContextPvc 로 단일화)
+    const pvcName = buildContextPvc;
 
     // dockerfileId 만 다르고 나머지 빌드 옵션은 동일하다.
     const buildRequest = (id: number) => ({
@@ -699,6 +690,18 @@ export default function DockerfileEditorPage() {
   const hasCopyInstruction =
     fields.instructions.some((i) => i.type === 'COPY_UPLOAD' || i.type === 'COPY_VOLUME') ||
     /^COPY\s/m.test(content);
+
+  // COPY 명령이 참조할 빌드 컨텍스트 Volume → PVC 해석
+  // (다이얼로그 선택 > COPY_VOLUME 명령의 volumeName > COPY 감지 시 첫 번째 Volume)
+  const buildContextVolName =
+    buildContextVolume ||
+    fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName)?.volumeName ||
+    (hasCopyInstruction && volumes.length > 0 ? volumes[0].name : '');
+  const buildContextPvc = volumes.find((v) => v.name === buildContextVolName)?.pvcName;
+  // COPY 가 있는데 컨텍스트 Volume(PVC)을 정하지 못하면 no-context 빌드가 되어 COPY 가
+  // 런타임에 알 수 없는 에러로 실패한다. 이를 막기 위해 빌드를 차단한다.
+  const buildContextMissing = hasCopyInstruction && !buildContextPvc;
+
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   if (isEdit && isLoading) {
@@ -1174,6 +1177,13 @@ export default function DockerfileEditorPage() {
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
                   </div>
+                  {buildContextMissing && (
+                    <p className="text-sm text-destructive">
+                      COPY 명령이 있는데 빌드 컨텍스트 Volume이 선택되지 않았습니다. 파일이 있는
+                      Volume을 선택해야 빌드할 수 있습니다. (선택하지 않으면 볼륨 데이터 없이
+                      빌드되어 COPY 가 실패합니다)
+                    </p>
+                  )}
                 </div>
                 {buildContextVolume && (
                   <div className="flex flex-col gap-1.5">
@@ -1204,7 +1214,8 @@ export default function DockerfileEditorPage() {
                 runBuildMutation.isPending ||
                 createMutation.isPending ||
                 !buildImageName ||
-                !buildTag
+                !buildTag ||
+                buildContextMissing
               }
             >
               <Play className="h-4 w-4" /> {buildAfterCreate ? '생성 후 빌드' : t('build.run')}
