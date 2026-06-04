@@ -196,6 +196,13 @@ export default function BuildDetailPage() {
             <div className="flex flex-col gap-3">
               <InfoRow label="Project" value={build.namespace} />
               <InfoRow label="Owner" value={build.username} />
+              {build.dockerfileRevisionId && build.dockerfileRevisionId > 0 && (
+                <InfoRow label="Dockerfile Revision">
+                  <span className="font-mono text-sm text-foreground">
+                    revision #{build.dockerfileRevisionId}
+                  </span>
+                </InfoRow>
+              )}
               <InfoRow label="생성 시간" value={formatDateTime(build.createdAt)} />
               <InfoRow label="소요 시간">
                 <span className="inline-flex items-center gap-1 text-sm text-foreground">

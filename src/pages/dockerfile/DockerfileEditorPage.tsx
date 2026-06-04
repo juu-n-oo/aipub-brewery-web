@@ -18,6 +18,7 @@ import {
   Terminal,
   Variable,
   Copy,
+  History,
 } from 'lucide-react';
 import { useDockerfile, useCreateDockerfile, useUpdateDockerfile } from '@/hooks/useDockerfiles';
 import { useRunBuild } from '@/hooks/useBuilds';
@@ -406,6 +407,9 @@ export default function DockerfileEditorPage() {
   const [buildContextSubPath, setBuildContextSubPath] = useState('');
   // "생성 후 빌드" 의도 기억: true 이면 빌드 다이얼로그 확인 시 생성→빌드를 연속 수행한다.
   const [buildAfterCreate, setBuildAfterCreate] = useState(false);
+  const [revisionMessage, setRevisionMessage] = useState('');
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<FormData | null>(null);
   const [mode, setMode] = useState<'form' | 'editor'>('form');
   const [baseImageError, setBaseImageError] = useState('');
   // 초기 하이드레이션(EDIT 시 기존 데이터 주입)이 끝났는지 추적한다.
@@ -600,16 +604,13 @@ export default function DockerfileEditorPage() {
 
   const onSubmit = (data: FormData) => {
     if (!validateBaseImage()) return;
-    const baseImage = resolveBaseImage();
     if (isEdit && dockerfileId !== undefined) {
-      updateMutation.mutate(
-        {
-          id: dockerfileId,
-          data: { name: data.name, description: data.description, content, baseImage },
-        },
-        { onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`) },
-      );
+      // Edit mode: show commit message dialog
+      setPendingSaveData(data);
+      setRevisionMessage('');
+      setShowSaveDialog(true);
     } else {
+      const baseImage = resolveBaseImage();
       createMutation.mutate(
         {
           name: data.name,
@@ -621,6 +622,30 @@ export default function DockerfileEditorPage() {
         { onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`) },
       );
     }
+  };
+
+  const handleConfirmSave = () => {
+    if (!pendingSaveData || dockerfileId === undefined) return;
+    const baseImage = resolveBaseImage();
+    updateMutation.mutate(
+      {
+        id: dockerfileId,
+        data: {
+          name: pendingSaveData.name,
+          description: pendingSaveData.description,
+          content,
+          baseImage,
+          message: revisionMessage || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          setShowSaveDialog(false);
+          setPendingSaveData(null);
+          navigate(`/dockerfiles?projectId=${selectedProjectId}`);
+        },
+      },
+    );
   };
 
   const handleBuild = () => {
@@ -714,9 +739,26 @@ export default function DockerfileEditorPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] flex flex-col h-full">
-      <h1 className="text-xl font-semibold text-foreground mb-6">
-        {isEdit ? `Dockerfile ${t('common.edit')}` : 'Create Dockerfile'}
-      </h1>
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-xl font-semibold text-foreground">
+          {isEdit ? `Dockerfile ${t('common.edit')}` : 'Create Dockerfile'}
+        </h1>
+        {isEdit && existing?.latestVersion && (
+          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-mono font-medium text-muted-foreground">
+            v{existing.latestVersion}
+          </span>
+        )}
+        {isEdit && dockerfileId !== undefined && (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => navigate(`/dockerfiles/${dockerfileId}/revisions`)}
+          >
+            <History className="h-3.5 w-3.5" />
+            히스토리
+          </button>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 flex-1">
         {/* 기본 설정 */}
@@ -1103,6 +1145,36 @@ export default function DockerfileEditorPage() {
           </Button>
         </div>
       </form>
+
+      {/* Save (Commit Message) Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={(open) => { if (!open) { setShowSaveDialog(false); setPendingSaveData(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>변경 사항 저장</DialogTitle>
+            <DialogDescription>
+              새 리비전이 생성됩니다. 변경 내용을 설명하는 메시지를 입력하세요. (선택)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 py-2">
+            <Label>리비전 메시지</Label>
+            <textarea
+              value={revisionMessage}
+              onChange={(e) => setRevisionMessage(e.target.value)}
+              placeholder="예: CUDA 버전 업그레이드, pip 패키지 추가"
+              rows={2}
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-ring focus:ring-ring/50 focus:ring-[3px] resize-y"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowSaveDialog(false); setPendingSaveData(null); }}>
+              취소
+            </Button>
+            <Button onClick={handleConfirmSave} disabled={updateMutation.isPending}>
+              저장
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Build Dialog */}
       <Dialog

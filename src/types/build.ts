@@ -9,6 +9,7 @@ export interface ImageBuild {
   message?: string;
   imageDigest?: string;
   dockerfileId: number;
+  dockerfileRevisionId?: number;
   username: string;
   createdAt: string;
   startTime?: string;

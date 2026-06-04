@@ -3,6 +3,7 @@ import { dockerfileApi } from '@/api/dockerfile';
 import type { Dockerfile, DockerfileCreateRequest, DockerfileUpdateRequest } from '@/types/dockerfile';
 
 const QUERY_KEY = 'dockerfiles';
+const REVISION_KEY = 'dockerfile-revisions';
 
 export function useDockerfiles(project: string) {
   return useQuery({
@@ -59,6 +60,7 @@ export function useUpdateDockerfile() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.id] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [REVISION_KEY, variables.id] });
     },
   });
 }
@@ -70,6 +72,38 @@ export function useDeleteDockerfile() {
     mutationFn: (id: number) => dockerfileApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+}
+
+/* ── Revision hooks ── */
+
+export function useDockerfileRevisions(dockerfileId: number | undefined) {
+  return useQuery({
+    queryKey: [REVISION_KEY, dockerfileId],
+    queryFn: () => dockerfileApi.listRevisions(dockerfileId!),
+    enabled: dockerfileId !== undefined,
+  });
+}
+
+export function useDockerfileRevision(dockerfileId: number | undefined, version: number | undefined) {
+  return useQuery({
+    queryKey: [REVISION_KEY, dockerfileId, version],
+    queryFn: () => dockerfileApi.getRevision(dockerfileId!, version!),
+    enabled: dockerfileId !== undefined && version !== undefined,
+  });
+}
+
+export function useRollbackRevision() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ dockerfileId, version }: { dockerfileId: number; version: number }) =>
+      dockerfileApi.rollback(dockerfileId, version),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, variables.dockerfileId] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [REVISION_KEY, variables.dockerfileId] });
     },
   });
 }

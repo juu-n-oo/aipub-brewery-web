@@ -6,6 +6,8 @@ const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const DockerfileListPage = lazy(() => import('@/pages/dockerfile/DockerfileListPage'));
 const DockerfileEditorPage = lazy(() => import('@/pages/dockerfile/DockerfileEditorPage'));
+const DockerfileRevisionListPage = lazy(() => import('@/pages/dockerfile/DockerfileRevisionListPage'));
+const DockerfileRevisionDiffPage = lazy(() => import('@/pages/dockerfile/DockerfileRevisionDiffPage'));
 const BuildListPage = lazy(() => import('@/pages/build/BuildListPage'));
 const BuildDetailPage = lazy(() => import('@/pages/build/BuildDetailPage'));
 
@@ -37,6 +39,8 @@ export const router = createBrowserRouter(
         { path: 'dockerfiles', element: <Lazy><DockerfileListPage /></Lazy> },
         { path: 'dockerfiles/new', element: <Lazy><DockerfileEditorPage /></Lazy> },
         { path: 'dockerfiles/:id/edit', element: <Lazy><DockerfileEditorPage /></Lazy> },
+        { path: 'dockerfiles/:id/revisions', element: <Lazy><DockerfileRevisionListPage /></Lazy> },
+        { path: 'dockerfiles/:id/revisions/:v1/diff/:v2', element: <Lazy><DockerfileRevisionDiffPage /></Lazy> },
         { path: 'builds', element: <Lazy><BuildListPage /></Lazy> },
         { path: 'builds/:namespace/:name', element: <Lazy><BuildDetailPage /></Lazy> },
       ],

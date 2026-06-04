@@ -1,11 +1,13 @@
 import { http, HttpResponse, delay } from 'msw';
-import { mockDockerfiles, mockBuilds } from './data';
+import { mockDockerfiles, mockBuilds, mockRevisions } from './data';
 import type { Dockerfile } from '@/types/dockerfile';
 import type { ImageBuild } from '@/types/build';
 
 let dockerfiles = [...mockDockerfiles];
 let builds = [...mockBuilds];
+let revisions = [...mockRevisions];
 let nextDfId = 100;
+let nextRevId = 100;
 
 export const handlers = [
   // ── Auth ──
@@ -433,6 +435,62 @@ export const handlers = [
     if (idx === -1) return new HttpResponse(null, { status: 404 });
     dockerfiles.splice(idx, 1);
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // ── Dockerfile Revisions ──
+
+  http.get('/api/v1alpha1/dockerfiles/:id/revisions', async ({ params }) => {
+    await delay(200);
+    const id = Number(params.id);
+    const df = dockerfiles.find((d) => d.id === id);
+    if (!df) return new HttpResponse(null, { status: 404 });
+    const dfRevisions = revisions
+      .filter((r) => r.dockerfileId === id)
+      .sort((a, b) => b.version - a.version);
+    return HttpResponse.json(dfRevisions);
+  }),
+
+  http.get('/api/v1alpha1/dockerfiles/:id/revisions/:version', async ({ params }) => {
+    await delay(200);
+    const id = Number(params.id);
+    const version = Number(params.version);
+    const rev = revisions.find((r) => r.dockerfileId === id && r.version === version);
+    if (!rev) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json(rev);
+  }),
+
+  http.post('/api/v1alpha1/dockerfiles/:id/revisions/:version/rollback', async ({ params }) => {
+    await delay(400);
+    const id = Number(params.id);
+    const version = Number(params.version);
+    const targetRev = revisions.find((r) => r.dockerfileId === id && r.version === version);
+    if (!targetRev) return new HttpResponse(null, { status: 404 });
+
+    const dfRevisions = revisions.filter((r) => r.dockerfileId === id);
+    const maxVersion = Math.max(...dfRevisions.map((r) => r.version));
+    const newVersion = maxVersion + 1;
+    const newRev = {
+      id: ++nextRevId,
+      dockerfileId: id,
+      version: newVersion,
+      content: targetRev.content,
+      baseImage: targetRev.baseImage,
+      message: `Rollback to v${version}`,
+      createdBy: 'joonwoo',
+      createdAt: new Date().toISOString(),
+    };
+    revisions.push(newRev);
+
+    const df = dockerfiles.find((d) => d.id === id);
+    if (df) {
+      df.content = targetRev.content;
+      df.baseImage = targetRev.baseImage;
+      df.latestVersion = newVersion;
+      df.latestRevisionId = newRev.id;
+      df.updatedAt = new Date().toISOString();
+      return HttpResponse.json(df);
+    }
+    return new HttpResponse(null, { status: 404 });
   }),
 
   // ── BuildContextFile ──

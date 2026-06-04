@@ -10,6 +10,8 @@ export interface Dockerfile {
   username: string;
   createdAt: string;
   updatedAt: string;
+  latestVersion?: number;
+  latestRevisionId?: number;
   contextFiles: BuildContextFileResponse[];
 }
 
@@ -26,4 +28,16 @@ export interface DockerfileUpdateRequest {
   description?: string;
   content: string;
   baseImage: string;
+  message?: string;
+}
+
+export interface DockerfileRevision {
+  id: number;
+  dockerfileId: number;
+  version: number;
+  content: string;
+  baseImage: string;
+  message?: string;
+  createdBy: string;
+  createdAt: string;
 }
