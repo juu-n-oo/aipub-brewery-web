@@ -28,6 +28,7 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/Table';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/Tooltip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { BuildPhase, ImageBuild } from '@/types/build';
 
@@ -64,7 +65,9 @@ export default function BuildListPage() {
     const q = searchQuery.toLowerCase();
     return allBuilds.filter(
       (b) =>
+        b.name.toLowerCase().includes(q) ||
         b.targetImage.toLowerCase().includes(q) ||
+        (b.baseImage?.toLowerCase().includes(q) ?? false) ||
         b.username.toLowerCase().includes(q) ||
         b.phase.toLowerCase().includes(q),
     );
@@ -159,6 +162,8 @@ export default function BuildListPage() {
                   <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 </TableHead>
                 <TableHead className="w-16">No</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Base Image</TableHead>
                 <TableHead>Target Image</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Owner</TableHead>
@@ -181,14 +186,16 @@ export default function BuildListPage() {
                     <TableCell className="text-muted-foreground">
                       {(currentPage - 1) * rowsPerPage + idx + 1}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="max-w-[220px]">
                       <Link
                         to={`/builds/${build.namespace}/${build.name}`}
-                        className="font-medium text-primary hover:underline"
+                        className="block truncate font-medium text-primary hover:underline"
                       >
-                        {build.targetImage}
+                        {build.name}
                       </Link>
                     </TableCell>
+                    <ImageCell image={build.baseImage} />
+                    <ImageCell image={build.targetImage} />
                     <TableCell className="text-muted-foreground">{build.namespace}</TableCell>
                     <TableCell className="text-muted-foreground">{build.username}</TableCell>
                     <TableCell>
@@ -290,6 +297,32 @@ function PageBtn({
       {children}
     </button>
   );
+}
+
+/** registry/project/image:tag → project/image:tag 축약 + hover 시 풀 경로 툴팁 */
+function ImageCell({ image }: { image?: string }) {
+  if (!image) {
+    return <TableCell className="text-muted-foreground/50">-</TableCell>;
+  }
+  return (
+    <TableCell className="max-w-[240px] text-muted-foreground">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="block truncate">{shortenImageName(image)}</span>
+        </TooltipTrigger>
+        <TooltipContent>{image}</TooltipContent>
+      </Tooltip>
+    </TableCell>
+  );
+}
+
+function shortenImageName(fullImage: string): string {
+  // "registry.host/project/image:tag" → "project/image:tag"
+  const parts = fullImage.split('/');
+  if (parts.length >= 3) {
+    return parts.slice(-2).join('/');
+  }
+  return fullImage;
 }
 
 function formatAge(dateStr: string): string {

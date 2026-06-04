@@ -6,10 +6,12 @@ const BASE = '/builds';
 
 const LABEL_DOCKERFILE_ID = 'dockerizer.aipub.ten1010.io/dockerfile-id';
 const LABEL_USERNAME = 'dockerizer.aipub.ten1010.io/username';
+const ANNOTATION_BASE_IMAGE = 'dockerizer.aipub.ten1010.io/base-image';
 
 /** k8s ImageBuild CR → UI용 ImageBuild DTO 매핑 (백엔드 crMapToResponse 와 동일 로직) */
 function mapCrToImageBuild(cr: ImageBuildCr): ImageBuild {
   const labels = cr.metadata.labels ?? {};
+  const annotations = cr.metadata.annotations ?? {};
   const status = cr.status ?? {};
   const dockerfileIdRaw = labels[LABEL_DOCKERFILE_ID];
   return {
@@ -17,6 +19,7 @@ function mapCrToImageBuild(cr: ImageBuildCr): ImageBuild {
     namespace: cr.metadata.namespace,
     phase: status.phase ?? 'Pending',
     targetImage: cr.spec.targetImage,
+    baseImage: annotations[ANNOTATION_BASE_IMAGE],
     message: status.message,
     imageDigest: status.imageDigest,
     dockerfileId: dockerfileIdRaw != null ? Number(dockerfileIdRaw) : 0,

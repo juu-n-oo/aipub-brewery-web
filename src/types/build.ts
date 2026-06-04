@@ -5,6 +5,7 @@ export interface ImageBuild {
   namespace: string;
   phase: BuildPhase;
   targetImage: string;
+  baseImage?: string;
   message?: string;
   imageDigest?: string;
   dockerfileId: number;
@@ -39,6 +40,7 @@ export interface ImageBuildCr {
     namespace: string;
     creationTimestamp: string;
     labels?: Record<string, string>;
+    annotations?: Record<string, string>;
   };
   spec: {
     targetImage: string;
