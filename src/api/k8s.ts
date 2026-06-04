@@ -8,6 +8,9 @@ import type {
   ImageSearchResponse,
   ImageTagsResponse,
 } from '@/types/k8s';
+import type { ImageBuildCr, ImageBuildList } from '@/types/build';
+
+const IMAGEBUILD_API = '/apis/dockerizer.aipub.ten1010.io/v1alpha1';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const K8S_PROXY = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
@@ -55,6 +58,14 @@ export const k8sApi = {
     k8sRequest<Project>(
       `/apis/project.aipub.ten1010.io/v1alpha1/projects/${name}`,
     ),
+
+  /** ImageBuild CR 목록 조회 (namespace 단위) */
+  listImageBuilds: (namespace: string) =>
+    k8sRequest<ImageBuildList>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds`),
+
+  /** ImageBuild CR 단건 조회 */
+  getImageBuild: (namespace: string, name: string) =>
+    k8sRequest<ImageBuildCr>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds/${name}`),
 
   /** Volume 목록 조회 (Backend API) */
   getVolumes: (namespace: string) =>
