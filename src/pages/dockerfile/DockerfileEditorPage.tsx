@@ -88,6 +88,146 @@ function newId() {
   return `instr-${nextInstrId++}`;
 }
 
+/* ── Parse Dockerfile content → fields ── */
+
+function parseDockerfileContent(content: string): DockerfileFields {
+  const lines = content.split('\n');
+  let baseImage = '';
+  const instructions: Instruction[] = [];
+  let workdir = '';
+  let exposePorts: string[] = [];
+  let cmd = '';
+
+  let pendingVolumeName: string | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const trimmed = raw.trim();
+
+    if (!trimmed) continue;
+
+    // AIPub Volume 주석: 다음 COPY 라인과 쌍으로 처리
+    const volumeComment = /^#\s*Source:\s*AIPub Volume\s+"(.+)"$/i.exec(trimmed);
+    if (volumeComment) {
+      pendingVolumeName = volumeComment[1];
+      continue;
+    }
+
+    if (trimmed.startsWith('#')) continue;
+
+    const upper = trimmed.toUpperCase();
+
+    if (upper.startsWith('FROM ')) {
+      const match = /^FROM\s+(.+)$/i.exec(trimmed);
+      if (match) {
+        const tokens = match[1].trim().split(/\s+/);
+        for (const token of tokens) {
+          if (token.startsWith('--')) continue;
+          baseImage = token;
+          break;
+        }
+      }
+      continue;
+    }
+
+    if (upper.startsWith('RUN ')) {
+      const command = trimmed.substring(4).trim();
+      if (command) {
+        instructions.push({ id: newId(), type: 'RUN', command });
+      }
+      continue;
+    }
+
+    if (upper.startsWith('COPY ') || upper.startsWith('ADD ')) {
+      const isAdd = upper.startsWith('ADD ');
+      const rest = trimmed.substring(isAdd ? 4 : 5).trim();
+      const parts = rest.split(/\s+/);
+
+      if (pendingVolumeName && parts.length >= 2) {
+        instructions.push({
+          id: newId(),
+          type: 'COPY_VOLUME',
+          volumeName: pendingVolumeName,
+          volumePath: '/' + parts.slice(0, -1).join(' '),
+          volumeDest: parts[parts.length - 1],
+        });
+      } else if (parts.length >= 2) {
+        instructions.push({
+          id: newId(),
+          type: 'COPY_UPLOAD',
+          uploadFileName: parts.slice(0, -1).join(' '),
+          uploadDest: parts[parts.length - 1],
+        });
+      }
+      pendingVolumeName = null;
+      continue;
+    }
+
+    if (upper.startsWith('ENV ')) {
+      const rest = trimmed.substring(4).trim();
+      const envPairs: EnvPair[] = [];
+      // ENV KEY=VALUE KEY2=VALUE2 형태
+      const pairRegex = /(\S+?)=(\S*)/g;
+      let m;
+      while ((m = pairRegex.exec(rest)) !== null) {
+        envPairs.push({ key: m[1], value: m[2] });
+      }
+      if (envPairs.length === 0) {
+        // ENV KEY VALUE 형태 (단일)
+        const spParts = rest.split(/\s+/);
+        if (spParts.length >= 2) {
+          envPairs.push({ key: spParts[0], value: spParts.slice(1).join(' ') });
+        } else if (spParts.length === 1) {
+          envPairs.push({ key: spParts[0], value: '' });
+        }
+      }
+      if (envPairs.length > 0) {
+        instructions.push({ id: newId(), type: 'ENV', envPairs });
+      }
+      continue;
+    }
+
+    if (upper.startsWith('WORKDIR ')) {
+      workdir = trimmed.substring(8).trim();
+      continue;
+    }
+
+    if (upper.startsWith('EXPOSE ')) {
+      const port = trimmed.substring(7).trim();
+      if (port) exposePorts.push(port);
+      continue;
+    }
+
+    if (upper.startsWith('CMD ')) {
+      const rest = trimmed.substring(4).trim();
+      // CMD ["bash"] → bash
+      const jsonMatch = /^\[(.+)]$/.exec(rest);
+      if (jsonMatch) {
+        try {
+          const arr = JSON.parse(`[${jsonMatch[1]}]`);
+          cmd = arr.join(' ');
+        } catch {
+          cmd = rest;
+        }
+      } else {
+        cmd = rest;
+      }
+      continue;
+    }
+
+    // ENTRYPOINT, LABEL 등 지원 안 되는 지시자는 무시 (editor 모드에서 유지됨)
+    pendingVolumeName = null;
+  }
+
+  return {
+    baseImage,
+    instructions,
+    workdir,
+    exposePorts: exposePorts.join(' '),
+    cmd,
+  };
+}
+
 /* ── Generate Dockerfile ── */
 
 function generateDockerfileContent(
@@ -297,9 +437,13 @@ export default function DockerfileEditorPage() {
       setValue('description', existing.description || '');
       setContent(existing.content);
       setSelectedProjectId(existing.project);
-      // 베이스 이미지 복원: 서버가 내려준 baseImage 우선, 없으면 content 에서 파싱.
-      const restoredBaseImage = existing.baseImage || extractBaseImage(existing.content);
-      setFields((prev) => ({ ...prev, baseImage: restoredBaseImage }));
+      // content 에서 fields 전체를 파싱하여 form 모드에서도 명령어 블록이 유지되도록 한다.
+      const parsed = parseDockerfileContent(existing.content);
+      // 서버가 내려준 baseImage 가 있으면 파싱 결과보다 우선한다.
+      if (existing.baseImage) {
+        parsed.baseImage = existing.baseImage;
+      }
+      setFields(parsed);
       // 하이드레이션 완료 표시: 이 시점 이후의 fields 변경만 content 에 반영한다.
       didInitRef.current = true;
     }
