@@ -10,6 +10,7 @@ import {
   Timer,
   Package,
   Circle,
+  FileCode2,
 } from 'lucide-react';
 import { useBuild, useBuildLogStream, useBuildLogs } from '@/hooks/useBuilds';
 import { Button } from '@/components/ui/Button';
@@ -120,10 +121,20 @@ export default function BuildDetailPage() {
             <p className="mt-1 font-mono text-sm text-muted-foreground">{build.targetImage}</p>
           </div>
         </div>
-        <Badge variant={phase.variant} className="gap-1.5 px-3.5 py-1.5 text-sm">
-          {phase.icon}
-          {phase.label}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {build.dockerfileId > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/dockerfiles/${build.dockerfileId}/edit`)}
+            >
+              <FileCode2 className="h-4 w-4" /> Dockerfile 편집
+            </Button>
+          )}
+          <Badge variant={phase.variant} className="gap-1.5 px-3.5 py-1.5 text-sm">
+            {phase.icon}
+            {phase.label}
+          </Badge>
+        </div>
       </div>
 
       <div className="flex gap-6">
