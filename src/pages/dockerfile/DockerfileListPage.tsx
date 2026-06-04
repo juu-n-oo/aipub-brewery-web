@@ -359,9 +359,12 @@ function PageBtn({
 }
 
 function shortenImageName(fullImage: string): string {
-  // "registry.host/project/image:tag" → "image:tag"
+  // "registry.host/project/image:tag" → "project/image:tag"
   const parts = fullImage.split('/');
-  return parts[parts.length - 1];
+  if (parts.length >= 3) {
+    return parts.slice(-2).join('/');
+  }
+  return fullImage;
 }
 
 function formatCreatedAt(dateStr: string): string {
