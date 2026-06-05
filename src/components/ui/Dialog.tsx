@@ -32,9 +32,28 @@ function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrim
   );
 }
 
+/**
+ * 다이얼로그 폭 프리셋. aipub-web 모달(min-w-3xl/4xl/5xl)에 맞춰 콘텐츠 양에 비례해 넉넉한 폭을 제공한다.
+ * - sm: 단순 확인(삭제/복원 등)
+ * - md: 기본값. 짧은 폼/메시지
+ * - lg: 입력 항목이 여러 개인 폼 (예: 빌드 설정)
+ * - xl/2xl/3xl: 탐색·목록형 다이얼로그 (이미지 선택, 볼륨 브라우저 등)
+ */
+type DialogSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+
+const dialogSizeClasses: Record<DialogSize, string> = {
+  sm: 'sm:max-w-md', // 28rem (448px)
+  md: 'sm:max-w-xl', // 36rem (576px)
+  lg: 'sm:max-w-2xl', // 42rem (672px)
+  xl: 'sm:max-w-3xl', // 48rem (768px)
+  '2xl': 'sm:max-w-4xl', // 56rem (896px)
+  '3xl': 'sm:max-w-5xl', // 64rem (1024px)
+};
+
 interface DialogContentProps extends ComponentProps<typeof DialogPrimitive.Content> {
   hideOverlay?: boolean;
   hideClose?: boolean;
+  size?: DialogSize;
 }
 
 function DialogContent({
@@ -42,6 +61,7 @@ function DialogContent({
   children,
   hideOverlay,
   hideClose,
+  size = 'md',
   ...props
 }: DialogContentProps) {
   return (
@@ -50,7 +70,8 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg duration-200 sm:max-w-lg sm:rounded-lg',
+          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-5 overflow-y-auto border p-6 shadow-lg duration-200 sm:rounded-xl',
+          dialogSizeClasses[size],
           className,
         )}
         {...props}

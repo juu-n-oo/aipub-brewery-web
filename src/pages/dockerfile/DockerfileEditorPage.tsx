@@ -85,6 +85,17 @@ function newId() {
   return `instr-${nextInstrId++}`;
 }
 
+/** 이미지 레퍼런스를 비교용으로 정규화한다. 태그가 없으면 `:latest` 로 보정한다. (다이제스트 `@sha256:` 은 그대로) */
+function normalizeImageRef(ref: string): string {
+  const trimmed = ref.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('@')) return trimmed;
+  const lastSlash = trimmed.lastIndexOf('/');
+  const lastColon = trimmed.lastIndexOf(':');
+  const hasTag = lastColon > lastSlash;
+  return hasTag ? trimmed : `${trimmed}:latest`;
+}
+
 /* ── Parse Dockerfile content → fields ── */
 
 function parseDockerfileContent(content: string): DockerfileFields {
@@ -391,6 +402,9 @@ export default function DockerfileEditorPage() {
   // 이 플래그가 false 인 동안 form↔content 동기화 effect 가 실행되지 않도록 막아
   // "수정 화면을 열고 아무것도 건드리지 않은 채 저장하면 content 가 그대로" 인 불변식을 보장한다.
   const didInitRef = useRef(false);
+  // 사용자가 빌드 다이얼로그의 이미지 이름을 직접 수정했는지 추적한다.
+  // true 가 되면 Dockerfile 이름 변경이 더 이상 이미지 이름을 덮어쓰지 않는다.
+  const buildImageNameDirty = useRef(false);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
 
@@ -439,13 +453,12 @@ export default function DockerfileEditorPage() {
     }
   }, [imageHubs, selectedImageHub]);
 
-  // imageHub 또는 이름 변경 시 buildImageName 갱신
+  // 이미지 이름 기본값 = Dockerfile 이름. 사용자가 직접 수정(dirty)하기 전까지만 동기화한다.
   useEffect(() => {
+    if (buildImageNameDirty.current) return;
     const name = existing?.name ?? nameValue;
-    if (selectedImageHub && name) {
-      setBuildImageName(`${HARBOR_URL}/${selectedImageHub}/${name}`);
-    }
-  }, [selectedImageHub, nameValue, existing?.name]);
+    if (name) setBuildImageName(name);
+  }, [nameValue, existing?.name]);
 
   // Sync fields → content (form mode)
   useEffect(() => {
@@ -608,8 +621,8 @@ export default function DockerfileEditorPage() {
     // dockerfileId 만 다르고 나머지 빌드 옵션은 동일하다.
     const buildRequest = (id: number) => ({
       dockerfileId: id,
-      targetImage: buildImageName,
-      tag: buildTag,
+      targetImage: targetImageRef,
+      tag: targetTag,
       ...(pvcName ? { buildContextPvc: pvcName } : {}),
       ...(buildContextSubPath ? { buildContextSubPath } : {}),
     });
@@ -678,6 +691,18 @@ export default function DockerfileEditorPage() {
   // COPY 가 있는데 컨텍스트 Volume(PVC)을 정하지 못하면 no-context 빌드가 되어 COPY 가
   // 런타임에 알 수 없는 에러로 실패한다. 이를 막기 위해 빌드를 차단한다.
   const buildContextMissing = hasCopyInstruction && !buildContextPvc;
+
+  // 빌드 대상 이미지: ImageHub + ImageName + Tag 조합으로 최종 레퍼런스를 구성한다.
+  const targetImageRepo = buildImageName.trim();
+  const targetTag = buildTag.trim() || 'latest';
+  const targetImageRef =
+    selectedImageHub && targetImageRepo
+      ? `${HARBOR_URL}/${selectedImageHub}/${targetImageRepo}`
+      : '';
+  const targetImageFull = targetImageRef ? `${targetImageRef}:${targetTag}` : '';
+  // 빌드 대상이 베이스 이미지와 완전히 동일하면 기존 이미지를 덮어쓰게 된다.
+  const overwritesBase =
+    !!targetImageFull && normalizeImageRef(targetImageFull) === normalizeImageRef(resolveBaseImage());
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -1049,7 +1074,7 @@ export default function DockerfileEditorPage() {
 
       {/* Save (Commit Message) Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={(open) => { if (!open) { setShowSaveDialog(false); setPendingSaveData(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="md">
           <DialogHeader>
             <DialogTitle>변경 사항 저장</DialogTitle>
             <DialogDescription>
@@ -1085,46 +1110,85 @@ export default function DockerfileEditorPage() {
           if (!open) setBuildAfterCreate(false); // 닫으면 "생성 후 빌드" 의도 초기화
         }}
       >
-        <DialogContent>
+        <DialogContent size="lg">
           <DialogHeader>
             <DialogTitle>{buildAfterCreate ? '생성 후 빌드' : t('build.run')}</DialogTitle>
             <DialogDescription>빌드할 이미지 이름과 태그를 입력하세요.</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            {/* ImageHub 선택 */}
-            <div className="flex flex-col gap-1.5">
-              <Label>ImageHub</Label>
-              <div className="relative">
-                <select
-                  value={selectedImageHub}
-                  onChange={(e) => setSelectedImageHub(e.target.value)}
-                  className="flex h-11 w-full rounded-md border border-input bg-card px-3.5 py-1 text-base appearance-none outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px] cursor-pointer"
-                >
-                  {imageHubs.map((hub) => (
-                    <option key={hub} value={hub}>
-                      {hub}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
+          <div className="flex flex-col gap-4 py-1">
+            {/* ImageHub / ImageName / Tag */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>ImageHub</Label>
+                <div className="relative">
+                  <select
+                    value={selectedImageHub}
+                    onChange={(e) => setSelectedImageHub(e.target.value)}
+                    className="flex h-11 w-full rounded-md border border-input bg-card px-3.5 py-1 text-base appearance-none outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px] cursor-pointer"
+                  >
+                    {imageHubs.map((hub) => (
+                      <option key={hub} value={hub}>
+                        {hub}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Image Name</Label>
+                <Input
+                  value={buildImageName}
+                  onChange={(e) => {
+                    buildImageNameDirty.current = true;
+                    setBuildImageName(e.target.value);
+                  }}
+                  placeholder="예: pytorch-cuda-base"
+                  className="h-11 font-mono text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>{t('build.tag')}</Label>
+                <Input
+                  value={buildTag}
+                  onChange={(e) => setBuildTag(e.target.value)}
+                  placeholder={t('build.tagPlaceholder')}
+                  className="h-11 font-mono text-sm"
+                />
               </div>
             </div>
+
+            {/* 빌드 대상 이미지 미리보기 */}
             <div className="flex flex-col gap-1.5">
               <Label>{t('build.targetImage')}</Label>
-              <Input
-                value={buildImageName}
-                onChange={(e) => setBuildImageName(e.target.value)}
-                placeholder={`${HARBOR_URL}/image-hub/image-name`}
-              />
+              <div className="rounded-md border border-input bg-muted/40 px-3.5 py-2.5 font-mono text-sm break-all">
+                {targetImageFull ? (
+                  <>
+                    <span className="text-foreground">{targetImageRef}</span>
+                    <span className="text-primary font-medium">:{targetTag}</span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground/70">
+                    ImageHub와 이미지 이름을 입력하면 미리보기가 표시됩니다.
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>{t('build.tag')}</Label>
-              <Input
-                value={buildTag}
-                onChange={(e) => setBuildTag(e.target.value)}
-                placeholder={t('build.tagPlaceholder')}
-              />
-            </div>
+
+            {/* 베이스 이미지와 동일 → 덮어쓰기 경고 */}
+            {overwritesBase && (
+              <div className="flex items-start gap-2 rounded-md border border-warning bg-warning/10 p-3">
+                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                <div className="text-sm text-foreground">
+                  <p className="font-medium">기존 이미지를 덮어씁니다</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    빌드 대상이 베이스 이미지(
+                    <span className="font-mono text-foreground break-all">{resolveBaseImage()}</span>
+                    )와 동일합니다. 빌드가 성공하면 기존 이미지가 이 빌드 결과로 교체됩니다.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* 빌드 컨텍스트 (COPY 사용 시) */}
             {hasCopyInstruction && (
@@ -1186,8 +1250,7 @@ export default function DockerfileEditorPage() {
               disabled={
                 runBuildMutation.isPending ||
                 createMutation.isPending ||
-                !buildImageName ||
-                !buildTag ||
+                !targetImageRef ||
                 buildContextMissing
               }
             >

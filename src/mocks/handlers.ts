@@ -504,6 +504,33 @@ export const handlers = [
 
   // ── Build API ──
 
+  // 빌드 목록/단건 조회는 k8sproxy 를 통해 ImageBuild CR 을 직접 읽는다 (buildApi.list / get).
+  http.get(
+    '/api/v1alpha1/k8sproxy/apis/dockerizer.aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds',
+    async ({ params }) => {
+      await delay(300);
+      const ns = params.ns as string;
+      const items = builds.filter((b) => b.namespace === ns).map(toImageBuildCr);
+      return HttpResponse.json({
+        apiVersion: 'dockerizer.aipub.ten1010.io/v1alpha1',
+        kind: 'ImageBuildList',
+        items,
+      });
+    },
+  ),
+
+  http.get(
+    '/api/v1alpha1/k8sproxy/apis/dockerizer.aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds/:name',
+    async ({ params }) => {
+      await delay(200);
+      const ns = params.ns as string;
+      const name = params.name as string;
+      const build = builds.find((b) => b.namespace === ns && b.name === name);
+      if (!build) return new HttpResponse(null, { status: 404 });
+      return HttpResponse.json(toImageBuildCr(build));
+    },
+  ),
+
   http.get('/api/v1alpha1/builds', async ({ request }) => {
     await delay(300);
     const url = new URL(request.url);
@@ -680,6 +707,35 @@ export const handlers = [
     });
   }),
 ];
+
+/** ImageBuild DTO → k8s ImageBuild CR (k8sproxy 조회 응답 형태). buildApi 의 mapCrToImageBuild 역변환. */
+function toImageBuildCr(b: ImageBuild) {
+  const labels: Record<string, string> = {
+    'dockerizer.aipub.ten1010.io/dockerfile-id': String(b.dockerfileId),
+    'dockerizer.aipub.ten1010.io/username': b.username,
+  };
+  const annotations: Record<string, string> = {};
+  if (b.baseImage) annotations['dockerizer.aipub.ten1010.io/base-image'] = b.baseImage;
+  return {
+    apiVersion: 'dockerizer.aipub.ten1010.io/v1alpha1',
+    kind: 'ImageBuild',
+    metadata: {
+      name: b.name,
+      namespace: b.namespace,
+      creationTimestamp: b.createdAt,
+      labels,
+      annotations,
+    },
+    spec: { targetImage: b.targetImage },
+    status: {
+      phase: b.phase,
+      message: b.message,
+      imageDigest: b.imageDigest,
+      startTime: b.startTime,
+      completionTime: b.completionTime,
+    },
+  };
+}
 
 function generateMockLogs(build: ImageBuild): string {
   const lines: string[] = [
