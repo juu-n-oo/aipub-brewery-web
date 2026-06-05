@@ -14,6 +14,7 @@ const IMAGEBUILD_API = '/apis/dockerizer.aipub.ten1010.io/v1alpha1';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const K8S_PROXY = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
+const API_BASE = `${API_BASE_URL}/api/v1alpha1`;
 
 async function k8sRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${K8S_PROXY}${path}`, {
@@ -75,6 +76,51 @@ export const k8sApi = {
   getVolumeFiles: (namespace: string, volumeName: string, path: string = '/') =>
     apiClient.get<BrowseResponse>(`/volumes/${namespace}/${volumeName}/browse`, {
       params: { path },
+    }),
+
+  /**
+   * Volume 파일 업로드 (Backend API).
+   * k8sproxy 는 exec(WebSocket) 업그레이드를 지원하지 않으므로 dockerizer 백엔드를 경유한다.
+   * 진행률 표시를 위해 fetch 대신 XHR(upload.onprogress)을 사용한다.
+   * @param onProgress 0~1 사이의 진행률 콜백 (브라우저→백엔드 전송 기준)
+   */
+  uploadVolumeFile: (
+    namespace: string,
+    volumeName: string,
+    path: string,
+    file: File,
+    onProgress?: (ratio: number) => void,
+  ): Promise<BrowseResponse> =>
+    new Promise<BrowseResponse>((resolve, reject) => {
+      const form = new FormData();
+      form.append('file', file);
+      const url = `${API_BASE}/volumes/${namespace}/${volumeName}/upload?path=${encodeURIComponent(path)}`;
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.withCredentials = true;
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      };
+      xhr.onload = () => {
+        if (xhr.status === 401) {
+          window.location.href = '/welcome';
+          reject(new Error('Unauthorized'));
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText) as BrowseResponse);
+          } catch {
+            resolve({} as BrowseResponse);
+          }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Upload failed: network error'));
+      xhr.send(form);
     }),
 
   /** ImageReview — 리포지토리 목록 조회 */

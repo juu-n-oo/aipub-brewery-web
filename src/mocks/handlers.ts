@@ -3,9 +3,9 @@ import { mockDockerfiles, mockBuilds, mockRevisions } from './data';
 import type { Dockerfile } from '@/types/dockerfile';
 import type { ImageBuild } from '@/types/build';
 
-let dockerfiles = [...mockDockerfiles];
-let builds = [...mockBuilds];
-let revisions = [...mockRevisions];
+const dockerfiles = [...mockDockerfiles];
+const builds = [...mockBuilds];
+const revisions = [...mockRevisions];
 let nextDfId = 100;
 let nextRevId = 100;
 
@@ -206,6 +206,16 @@ export const handlers = [
     return HttpResponse.json({ items: volumeMap[ns] ?? [] });
   }),
 
+  // ── Volume 파일 업로드 (Backend API) ──
+
+  http.post('/api/v1alpha1/volumes/:ns/:name/upload', async ({ request }) => {
+    await delay(400);
+    const url = new URL(request.url);
+    const path = url.searchParams.get('path') || '/';
+    // mock 에서는 실제 PVC 쓰기를 흉내내지 않고, 갱신된 목록 형태만 반환한다.
+    return HttpResponse.json({ path, entries: [] });
+  }),
+
   // ── Volume 파일 브라우저 (Backend API) ──
 
   http.get('/api/v1alpha1/volumes/:ns/:name/browse', async ({ params, request }) => {
@@ -402,7 +412,6 @@ export const handlers = [
       username: body.username,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      contextFiles: [],
     };
     dockerfiles.push(newDf);
     return HttpResponse.json(newDf, { status: 201 });
@@ -491,51 +500,6 @@ export const handlers = [
       return HttpResponse.json(df);
     }
     return new HttpResponse(null, { status: 404 });
-  }),
-
-  // ── BuildContextFile ──
-
-  http.get('/api/v1alpha1/dockerfiles/:dockerfileId/files', async ({ params }) => {
-    await delay(200);
-    const id = Number(params.dockerfileId);
-    const df = dockerfiles.find((d) => d.id === id);
-    if (!df) return new HttpResponse(null, { status: 404 });
-    return HttpResponse.json(df.contextFiles ?? []);
-  }),
-
-  http.post('/api/v1alpha1/dockerfiles/:dockerfileId/files', async ({ params, request }) => {
-    await delay(500);
-    const id = Number(params.dockerfileId);
-    const df = dockerfiles.find((d) => d.id === id);
-    if (!df) return new HttpResponse(null, { status: 404 });
-
-    const url = new URL(request.url);
-    const targetPath = url.searchParams.get('targetPath') || 'file';
-
-    const fileResponse = {
-      id: Date.now(),
-      fileName: targetPath.split('/').pop() || targetPath,
-      targetPath,
-      fileSize: 1024,
-      uploadedAt: new Date().toISOString(),
-    };
-
-    if (!df.contextFiles) df.contextFiles = [];
-    df.contextFiles.push(fileResponse);
-
-    return HttpResponse.json(fileResponse, { status: 201 });
-  }),
-
-  http.delete('/api/v1alpha1/dockerfiles/:dockerfileId/files/:fileId', async ({ params }) => {
-    await delay(300);
-    const dfId = Number(params.dockerfileId);
-    const fileId = Number(params.fileId);
-    const df = dockerfiles.find((d) => d.id === dfId);
-    if (!df) return new HttpResponse(null, { status: 404 });
-    if (df.contextFiles) {
-      df.contextFiles = df.contextFiles.filter((f) => f.id !== fileId);
-    }
-    return new HttpResponse(null, { status: 204 });
   }),
 
   // ── Build API ──

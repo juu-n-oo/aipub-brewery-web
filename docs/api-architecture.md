@@ -101,6 +101,7 @@ POST /api/v1alpha1/logout             (RootLayout에서 호출)
 |--------|-----------|------|
 | GET | `/volumes/{namespace}` | AIPubVolume 목록 |
 | GET | `/volumes/{namespace}/{name}/browse?path=` | 볼륨 파일 탐색 |
+| POST | `/volumes/{namespace}/{name}/upload?path=` | 볼륨 지정 경로에 파일 업로드 (multipart). k8sproxy 가 exec(WebSocket) 를 지원하지 않아 백엔드 경유. 진행률 표시를 위해 fetch 대신 **XHR**(`upload.onprogress`) 사용 |
 | GET | `/registries/ngc/images?query=&page=&pageSize=` | NGC 이미지 검색 |
 | GET | `/registries/ngc/images/{org}/{repo}/tags` | NGC 태그 |
 | GET | `/registries/huggingface/images?query=` | HuggingFace 검색 |

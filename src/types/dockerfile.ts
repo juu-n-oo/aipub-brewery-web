@@ -1,5 +1,3 @@
-import type { BuildContextFileResponse } from './build-context-file';
-
 export interface Dockerfile {
   id: number;
   name: string;
@@ -12,7 +10,6 @@ export interface Dockerfile {
   updatedAt: string;
   latestVersion?: number;
   latestRevisionId?: number;
-  contextFiles: BuildContextFileResponse[];
 }
 
 export interface DockerfileCreateRequest {

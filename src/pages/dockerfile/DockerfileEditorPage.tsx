@@ -13,7 +13,6 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
-  Upload,
   HardDrive,
   Terminal,
   Variable,
@@ -45,7 +44,7 @@ const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
 
 /* ── Types ── */
 
-type InstructionType = 'RUN' | 'COPY_UPLOAD' | 'COPY_VOLUME' | 'ENV';
+type InstructionType = 'RUN' | 'COPY_VOLUME' | 'ENV';
 
 interface EnvPair {
   key: string;
@@ -57,10 +56,7 @@ interface Instruction {
   type: InstructionType;
   // RUN
   command?: string;
-  // COPY (upload)
-  uploadFileName?: string;
-  uploadDest?: string;
-  // COPY (volume)
+  // COPY (Volume에서 선택 또는 업로드한 파일 — 둘 다 같은 PVC 경로 모델)
   volumeName?: string;
   volumePath?: string;
   volumeDest?: string;
@@ -96,7 +92,7 @@ function parseDockerfileContent(content: string): DockerfileFields {
   let baseImage = '';
   const instructions: Instruction[] = [];
   let workdir = '';
-  let exposePorts: string[] = [];
+  const exposePorts: string[] = [];
   let cmd = '';
 
   let pendingVolumeName: string | null = null;
@@ -144,20 +140,16 @@ function parseDockerfileContent(content: string): DockerfileFields {
       const rest = trimmed.substring(isAdd ? 4 : 5).trim();
       const parts = rest.split(/\s+/);
 
-      if (pendingVolumeName && parts.length >= 2) {
+      if (parts.length >= 2) {
+        // COPY 는 모두 Volume(또는 업로드) 소스로 통합한다.
+        // "# Source: AIPub Volume" 주석이 앞에 있으면 그 볼륨을 채우고,
+        // 없으면 volumeName 을 비워 사용자가 "찾아보기"로 다시 지정하도록 둔다.
         instructions.push({
           id: newId(),
           type: 'COPY_VOLUME',
-          volumeName: pendingVolumeName,
+          volumeName: pendingVolumeName ?? '',
           volumePath: '/' + parts.slice(0, -1).join(' '),
           volumeDest: parts[parts.length - 1],
-        });
-      } else if (parts.length >= 2) {
-        instructions.push({
-          id: newId(),
-          type: 'COPY_UPLOAD',
-          uploadFileName: parts.slice(0, -1).join(' '),
-          uploadDest: parts[parts.length - 1],
         });
       }
       pendingVolumeName = null;
@@ -231,10 +223,7 @@ function parseDockerfileContent(content: string): DockerfileFields {
 
 /* ── Generate Dockerfile ── */
 
-function generateDockerfileContent(
-  fields: DockerfileFields,
-  _uploadedFiles?: Map<string, File>,
-): string {
+function generateDockerfileContent(fields: DockerfileFields): string {
   const lines: string[] = [];
 
   lines.push(`FROM ${fields.baseImage || '<base-image>'}`);
@@ -245,12 +234,6 @@ function generateDockerfileContent(
       case 'RUN':
         if (instr.command?.trim()) {
           lines.push(`RUN ${instr.command.trim()}`);
-          lines.push('');
-        }
-        break;
-      case 'COPY_UPLOAD':
-        if (instr.uploadFileName && instr.uploadDest?.trim()) {
-          lines.push(`COPY ${instr.uploadFileName} ${instr.uploadDest.trim()}`);
           lines.push('');
         }
         break;
@@ -346,16 +329,10 @@ const instrTypeOptions: {
     desc: '쉘 명령어 실행',
   },
   {
-    value: 'COPY_UPLOAD',
-    label: 'COPY (파일 업로드)',
-    icon: <Upload className="h-3.5 w-3.5" />,
-    desc: '업로드한 파일을 이미지에 복사',
-  },
-  {
     value: 'COPY_VOLUME',
-    label: 'COPY (Volume)',
+    label: 'COPY (파일 복사)',
     icon: <HardDrive className="h-3.5 w-3.5" />,
-    desc: 'AIPub Volume에서 파일 복사',
+    desc: 'AIPub Volume에서 선택하거나 파일을 업로드해 복사',
   },
   {
     value: 'ENV',
@@ -394,8 +371,6 @@ export default function DockerfileEditorPage() {
 
   const [content, setContent] = useState('');
   const [fields, setFields] = useState<DockerfileFields>({ ...defaultFields, instructions: [] });
-  const [uploadedFiles] = useState<Map<string, File>>(new Map());
-  const [uploadedFileNames, setUploadedFileNames] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<DockerfileWarning[]>([]);
   const [showBuildDialog, setShowBuildDialog] = useState(false);
   const [showImageSelector, setShowImageSelector] = useState(false);
@@ -418,7 +393,6 @@ export default function DockerfileEditorPage() {
   const didInitRef = useRef(false);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -478,11 +452,11 @@ export default function DockerfileEditorPage() {
     // 초기 하이드레이션 전에는 동기화하지 않는다. (EDIT 시 기존 content 가 덮어써지는 것을 방지)
     if (!didInitRef.current) return;
     if (mode === 'form') {
-      const generated = generateDockerfileContent(fields, uploadedFiles);
+      const generated = generateDockerfileContent(fields);
       setContent(generated);
       updateMarkers(generated);
     }
-  }, [fields, mode, uploadedFileNames]);
+  }, [fields, mode]);
 
   const updateMarkers = useCallback((value: string) => {
     const newWarnings = validateDockerfile(value);
@@ -520,10 +494,6 @@ export default function DockerfileEditorPage() {
   const addInstruction = (type: InstructionType) => {
     const instr: Instruction = { id: newId(), type };
     if (type === 'RUN') instr.command = '';
-    if (type === 'COPY_UPLOAD') {
-      instr.uploadFileName = '';
-      instr.uploadDest = '/workspace/';
-    }
     if (type === 'COPY_VOLUME') {
       instr.volumeName = '';
       instr.volumePath = '';
@@ -558,23 +528,6 @@ export default function DockerfileEditorPage() {
       [arr[idx], arr[target]] = [arr[target], arr[idx]];
       return { ...prev, instructions: arr };
     });
-  };
-
-  /* ── File Upload ── */
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      uploadedFiles.set(file.name, file);
-    }
-    setUploadedFileNames([...uploadedFiles.keys()]);
-    e.target.value = '';
-  };
-
-  const removeUploadedFile = (name: string) => {
-    uploadedFiles.delete(name);
-    setUploadedFileNames([...uploadedFiles.keys()]);
   };
 
   /* ── Submit ── */
@@ -713,8 +666,7 @@ export default function DockerfileEditorPage() {
   };
 
   const hasCopyInstruction =
-    fields.instructions.some((i) => i.type === 'COPY_UPLOAD' || i.type === 'COPY_VOLUME') ||
-    /^COPY\s/m.test(content);
+    fields.instructions.some((i) => i.type === 'COPY_VOLUME') || /^COPY\s/m.test(content);
 
   // COPY 명령이 참조할 빌드 컨텍스트 Volume → PVC 해석
   // (다이얼로그 선택 > COPY_VOLUME 명령의 volumeName > COPY 감지 시 첫 번째 Volume)
@@ -883,56 +835,6 @@ export default function DockerfileEditorPage() {
                   )}
                 </div>
 
-                {/* Uploaded Files */}
-                <div className="rounded-lg border border-border bg-card p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-base font-bold text-foreground">업로드 파일</h3>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="h-4 w-4" />
-                      파일 추가
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={handleFileUpload}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    COPY 명령어에서 사용할 파일을 업로드하세요. 업로드된 파일은 빌드 컨텍스트에
-                    포함됩니다.
-                  </p>
-                  {uploadedFileNames.length === 0 ? (
-                    <p className="text-sm text-muted-foreground/70 py-2">
-                      업로드된 파일이 없습니다.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {uploadedFileNames.map((name) => (
-                        <span
-                          key={name}
-                          className="inline-flex items-center gap-1.5 bg-muted rounded-md px-3 py-1.5 text-sm"
-                        >
-                          {name}
-                          <button
-                            type="button"
-                            onClick={() => removeUploadedFile(name)}
-                            className="text-destructive hover:text-destructive/80"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {/* Instruction Blocks */}
                 <div className="rounded-lg border border-border bg-card p-4">
                   <div className="flex items-center justify-between mb-3">
@@ -991,7 +893,6 @@ export default function DockerfileEditorPage() {
                           instr={instr}
                           idx={idx}
                           total={fields.instructions.length}
-                          uploadedFileNames={uploadedFileNames}
                           volumes={volumes}
                           namespace={selectedProjectId}
                           onUpdate={(patch) => updateInstruction(instr.id, patch)}
@@ -1318,7 +1219,6 @@ function InstructionBlock({
   instr,
   idx,
   total,
-  uploadedFileNames,
   namespace,
   onUpdate,
   onRemove,
@@ -1327,7 +1227,6 @@ function InstructionBlock({
   instr: Instruction;
   idx: number;
   total: number;
-  uploadedFileNames: string[];
   volumes?: unknown;
   namespace: string;
   onUpdate: (patch: Partial<Instruction>) => void;
@@ -1340,7 +1239,6 @@ function InstructionBlock({
 
   const typeBgColor = {
     RUN: 'border-l-blue-400',
-    COPY_UPLOAD: 'border-l-orange-400',
     COPY_VOLUME: 'border-l-green-400',
     ENV: 'border-l-purple-400',
   }[instr.type];
@@ -1390,36 +1288,6 @@ function InstructionBlock({
         />
       )}
 
-      {instr.type === 'COPY_UPLOAD' && (
-        <div className="flex gap-2 items-end">
-          <div className="flex-1 flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">소스 파일</span>
-            <select
-              value={instr.uploadFileName ?? ''}
-              onChange={(e) => onUpdate({ uploadFileName: e.target.value })}
-              className="h-10 rounded-md border border-input bg-card px-2.5 text-sm outline-none"
-            >
-              <option value="">파일 선택...</option>
-              {uploadedFileNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Copy className="h-4 w-4 text-muted-foreground/70 mb-2.5 shrink-0" />
-          <div className="flex-1 flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">대상 경로</span>
-            <Input
-              placeholder="/workspace/"
-              value={instr.uploadDest ?? ''}
-              onChange={(e) => onUpdate({ uploadDest: e.target.value })}
-              className="h-10 text-sm"
-            />
-          </div>
-        </div>
-      )}
-
       {instr.type === 'COPY_VOLUME' && (
         <div className="flex flex-col gap-2">
           <div className="flex gap-2 items-end">
@@ -1427,7 +1295,7 @@ function InstructionBlock({
               <span className="text-xs text-muted-foreground">AIPub Volume / 파일 경로</span>
               <div className="flex gap-1.5">
                 <Input
-                  placeholder="Volume:경로 (예: data-storage:/data/requirements.txt)"
+                  placeholder="Volume에서 파일을 선택하거나 업로드하세요"
                   value={
                     instr.volumeName && instr.volumePath
                       ? `${instr.volumeName}:${instr.volumePath}`
@@ -1443,7 +1311,7 @@ function InstructionBlock({
                   className="h-10 shrink-0"
                   onClick={() => setShowBrowser(true)}
                 >
-                  찾아보기
+                  선택 / 업로드
                 </Button>
               </div>
             </div>

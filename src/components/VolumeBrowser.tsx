@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { Folder, FileText, ChevronRight, Loader2, HardDrive, Check } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Folder, FileText, ChevronRight, Loader2, HardDrive, Check, Upload } from 'lucide-react';
 import { useVolumes, useVolumeFiles } from '@/hooks/useK8s';
+import { k8sApi } from '@/api/k8s';
 import { Button } from '@/components/ui/Button';
 import {
   Dialog,
@@ -19,12 +21,19 @@ interface VolumeBrowserProps {
 }
 
 export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: VolumeBrowserProps) {
+  const queryClient = useQueryClient();
   const { data: volumeList, isLoading: volumesLoading } = useVolumes(namespace);
   const volumes = volumeList?.items ?? [];
 
   const [selectedVolume, setSelectedVolume] = useState('');
   const [currentPath, setCurrentPath] = useState('/');
   const [selectedFile, setSelectedFile] = useState('');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadingName, setUploadingName] = useState('');
 
   const { data: listing, isLoading: filesLoading } = useVolumeFiles(
     namespace,
@@ -33,6 +42,38 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
   );
   const entries = listing?.entries ?? [];
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 같은 파일 재선택 허용
+    if (!file || !selectedVolume) return;
+
+    setUploadError('');
+    setUploading(true);
+    setUploadProgress(0);
+    setUploadingName(file.name);
+    try {
+      await k8sApi.uploadVolumeFile(
+        namespace,
+        selectedVolume,
+        currentPath,
+        file,
+        setUploadProgress,
+      );
+      // 현재 경로 목록을 갱신하여 방금 올린 파일이 보이도록 한다.
+      await queryClient.invalidateQueries({
+        queryKey: ['volumes', namespace, selectedVolume, 'browse', currentPath],
+      });
+      // 업로드한 파일을 바로 선택 상태로 둔다 → "업로드 후 바로 COPY" 흐름.
+      const fullPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
+      setSelectedFile(fullPath);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : '업로드에 실패했습니다.');
+    } finally {
+      setUploading(false);
+      setUploadingName('');
+    }
+  };
+
   const dirs = entries.filter((e) => e.type === 'DIRECTORY');
   const files = entries.filter((e) => e.type === 'FILE');
 
@@ -40,6 +81,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
     setSelectedVolume(name);
     setCurrentPath('/');
     setSelectedFile('');
+    setUploadError('');
   };
 
   const handleNavigate = (dirName: string) => {
@@ -48,8 +90,9 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
     setSelectedFile('');
   };
 
-  const handleSelectFile = (fileName: string) => {
-    const fullPath = currentPath === '/' ? `/${fileName}` : `${currentPath}/${fileName}`;
+  // 파일이든 디렉토리든 동일하게 "소스로 선택"한다. (COPY 는 디렉토리도 지원)
+  const handleSelectEntry = (name: string) => {
+    const fullPath = currentPath === '/' ? `/${name}` : `${currentPath}/${name}`;
     setSelectedFile(fullPath);
   };
 
@@ -64,6 +107,9 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
     setSelectedVolume('');
     setCurrentPath('/');
     setSelectedFile('');
+    setUploadError('');
+    setUploadProgress(0);
+    setUploadingName('');
     onOpenChange(false);
   };
 
@@ -131,35 +177,82 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
 
           {/* Right: File Browser */}
           <div className="flex-1 flex flex-col min-w-0">
-            {/* Breadcrumb */}
-            <div className="px-3 py-2 border-b border-border bg-muted shrink-0 flex items-center gap-1 text-xs overflow-x-auto">
-              <button
-                onClick={() => {
-                  setCurrentPath('/');
-                  setSelectedFile('');
-                }}
-                className={`hover:text-primary shrink-0 ${currentPath === '/' ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
-              >
-                /
-              </button>
-              {pathSegments.map((seg, i) => {
-                const segPath = '/' + pathSegments.slice(0, i + 1).join('/');
-                const isLast = i === pathSegments.length - 1;
-                return (
-                  <span key={segPath} className="flex items-center gap-1 shrink-0">
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/70" />
-                    <button
-                      onClick={() => {
-                        setCurrentPath(segPath);
-                        setSelectedFile('');
-                      }}
-                      className={`hover:text-primary ${isLast ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+            {/* Breadcrumb + Upload */}
+            <div className="border-b border-border bg-muted shrink-0">
+              <div className="flex items-center gap-2 px-3 py-2 text-xs">
+                <div className="flex items-center gap-1 overflow-x-auto flex-1">
+                  <button
+                    onClick={() => {
+                      setCurrentPath('/');
+                      setSelectedFile('');
+                    }}
+                    className={`hover:text-primary shrink-0 ${currentPath === '/' ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+                  >
+                    /
+                  </button>
+                  {pathSegments.map((seg, i) => {
+                    const segPath = '/' + pathSegments.slice(0, i + 1).join('/');
+                    const isLast = i === pathSegments.length - 1;
+                    return (
+                      <span key={segPath} className="flex items-center gap-1 shrink-0">
+                        <ChevronRight className="h-3 w-3 text-muted-foreground/70" />
+                        <button
+                          onClick={() => {
+                            setCurrentPath(segPath);
+                            setSelectedFile('');
+                          }}
+                          className={`hover:text-primary ${isLast ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+                        >
+                          {seg}
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                {selectedVolume && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      onChange={handleUpload}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 shrink-0"
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                      title="현재 경로에 파일 업로드"
                     >
-                      {seg}
-                    </button>
-                  </span>
-                );
-              })}
+                      {uploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" />
+                      )}
+                      업로드
+                    </Button>
+                  </>
+                )}
+              </div>
+              {uploading && (
+                <div className="px-3 pb-2">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                    <span className="truncate">{uploadingName}</span>
+                    <span>{Math.round(uploadProgress * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${Math.round(uploadProgress * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {uploadError && (
+                <p className="px-3 pb-2 text-[11px] text-destructive">{uploadError}</p>
+              )}
             </div>
 
             {/* File list */}
@@ -192,24 +285,49 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Directories first */}
-                    {dirs.map((entry) => (
-                      <tr
-                        key={entry.name}
-                        className="border-b border-border hover:bg-primary/5 cursor-pointer transition-colors"
-                        onDoubleClick={() => handleNavigate(entry.name)}
-                        onClick={() => handleNavigate(entry.name)}
-                      >
-                        <td className="px-3 py-2 flex items-center gap-2">
-                          <Folder className="h-4 w-4 text-[#FF9500] shrink-0" />
-                          <span className="text-foreground font-medium">{entry.name}/</span>
-                        </td>
-                        <td className="px-3 py-2 text-right text-muted-foreground/70">—</td>
-                        <td className="px-3 py-2 text-right text-muted-foreground/70">
-                          {formatDate(entry.modifiedAt)}
-                        </td>
-                      </tr>
-                    ))}
+                    {/* Directories first — 클릭=선택, 더블클릭/› 버튼=열기 */}
+                    {dirs.map((entry) => {
+                      const fullPath =
+                        currentPath === '/' ? `/${entry.name}` : `${currentPath}/${entry.name}`;
+                      const isSelected = selectedFile === fullPath;
+                      return (
+                        <tr
+                          key={entry.name}
+                          className={`border-b border-border cursor-pointer transition-colors ${
+                            isSelected ? 'bg-primary/10' : 'hover:bg-muted'
+                          }`}
+                          onClick={() => handleSelectEntry(entry.name)}
+                          onDoubleClick={() => handleNavigate(entry.name)}
+                        >
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <Folder className="h-4 w-4 text-[#FF9500] shrink-0" />
+                              <span
+                                className={`font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}
+                              >
+                                {entry.name}/
+                              </span>
+                              {isSelected && <Check className="h-3 w-3 text-primary shrink-0" />}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNavigate(entry.name);
+                                }}
+                                className="ml-auto p-0.5 rounded hover:bg-card text-muted-foreground/70 hover:text-foreground shrink-0"
+                                title="폴더 열기"
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right text-muted-foreground/70">—</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground/70">
+                            {formatDate(entry.modifiedAt)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {/* Files */}
                     {files.map((entry) => {
                       const fullPath =
@@ -221,7 +339,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                           className={`border-b border-border cursor-pointer transition-colors ${
                             isSelected ? 'bg-primary/10' : 'hover:bg-muted'
                           }`}
-                          onClick={() => handleSelectFile(entry.name)}
+                          onClick={() => handleSelectEntry(entry.name)}
                         >
                           <td className="px-3 py-2 flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground/70 shrink-0" />

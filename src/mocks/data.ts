@@ -29,7 +29,6 @@ CMD ["bash"]`,
     updatedAt: '2026-04-16T14:30:00Z',
     latestVersion: 3,
     latestRevisionId: 3,
-    contextFiles: [],
   },
   {
     id: 2,
@@ -55,7 +54,6 @@ CMD ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root", "--no-browser"]`,
     updatedAt: '2026-04-14T11:00:00Z',
     latestVersion: 1,
     latestRevisionId: 4,
-    contextFiles: [],
   },
   {
     id: 3,
@@ -80,7 +78,6 @@ CMD ["python", "-m", "vllm.entrypoints.openai.api_server"]`,
     updatedAt: '2026-04-17T08:00:00Z',
     latestVersion: 1,
     latestRevisionId: 5,
-    contextFiles: [],
   },
 ];
 
