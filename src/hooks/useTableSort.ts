@@ -15,13 +15,15 @@ type Accessor<T> = (item: T) => string | number | null | undefined;
  * - null/undefined 값은 방향과 무관하게 항상 마지막으로 보낸다.
  * - 문자열은 localeCompare(numeric) 로 자연 정렬한다.
  *
- * accessors 는 컴포넌트에서 useMemo 로 안정화해 전달할 것.
+ * 정렬 키 K 는 accessors 객체의 키에서만 추론한다 (initial.key 의 리터럴로
+ * 좁혀지지 않도록). accessors 는 컴포넌트에서 useMemo 로 안정화해 전달할 것.
  */
-export function useTableSort<T, K extends string>(
+export function useTableSort<T, A extends Record<string, Accessor<T>>>(
   items: T[],
-  accessors: Record<K, Accessor<T>>,
-  initial: SortState<K>,
+  accessors: A,
+  initial: SortState<Extract<keyof A, string>>,
 ) {
+  type K = Extract<keyof A, string>;
   const [sort, setSort] = useState<SortState<K>>(initial);
 
   const toggle = useCallback((key: K) => {
