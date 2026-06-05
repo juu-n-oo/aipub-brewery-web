@@ -31,6 +31,8 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/Table';
+import { SortableHead } from '@/components/ui/SortableHead';
+import { useTableSort } from '@/hooks/useTableSort';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/Tooltip';
 import {
@@ -74,8 +76,23 @@ export default function DockerfileListPage() {
     );
   }, [allDockerfiles, searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
-  const paged = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const sortAccessors = useMemo(
+    () => ({
+      name: (d: (typeof allDockerfiles)[number]) => d.name,
+      project: (d: (typeof allDockerfiles)[number]) => d.project,
+      username: (d: (typeof allDockerfiles)[number]) => d.username,
+      baseImage: (d: (typeof allDockerfiles)[number]) => d.baseImage,
+      createdAt: (d: (typeof allDockerfiles)[number]) => new Date(d.createdAt).getTime(),
+    }),
+    [],
+  );
+  const { sorted, sort, toggle } = useTableSort(filtered, sortAccessors, {
+    key: 'createdAt',
+    dir: 'desc',
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / rowsPerPage));
+  const paged = sorted.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const allSelected = paged.length > 0 && paged.every((df) => selected.has(df.id));
 
@@ -205,11 +222,16 @@ export default function DockerfileListPage() {
                 <TableHead className="w-12">
                   <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Base Image</TableHead>
-                <TableHead>Creation Time</TableHead>
+                <SortableHead label="Name" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableHead label="Project" sortKey="project" sort={sort} onSort={toggle} />
+                <SortableHead label="Owner" sortKey="username" sort={sort} onSort={toggle} />
+                <SortableHead label="Base Image" sortKey="baseImage" sort={sort} onSort={toggle} />
+                <SortableHead
+                  label="Creation Time"
+                  sortKey="createdAt"
+                  sort={sort}
+                  onSort={toggle}
+                />
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -235,9 +257,7 @@ export default function DockerfileListPage() {
                   <TableCell className="max-w-[240px] text-muted-foreground">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="block truncate">
-                          {shortenImageName(df.baseImage)}
-                        </span>
+                        <span className="block truncate">{shortenImageName(df.baseImage)}</span>
                       </TooltipTrigger>
                       <TooltipContent>{df.baseImage}</TooltipContent>
                     </Tooltip>

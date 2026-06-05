@@ -28,6 +28,8 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/Table';
+import { SortableHead } from '@/components/ui/SortableHead';
+import { useTableSort } from '@/hooks/useTableSort';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/Tooltip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { BuildPhase, ImageBuild } from '@/types/build';
@@ -73,8 +75,25 @@ export default function BuildListPage() {
     );
   }, [allBuilds, searchQuery]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
-  const paged = filtered.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  const sortAccessors = useMemo(
+    () => ({
+      name: (b: ImageBuild) => b.name,
+      baseImage: (b: ImageBuild) => b.baseImage,
+      targetImage: (b: ImageBuild) => b.targetImage,
+      namespace: (b: ImageBuild) => b.namespace,
+      username: (b: ImageBuild) => b.username,
+      phase: (b: ImageBuild) => b.phase,
+      createdAt: (b: ImageBuild) => new Date(b.createdAt).getTime(),
+    }),
+    [],
+  );
+  const { sorted, sort, toggle } = useTableSort(filtered, sortAccessors, {
+    key: 'createdAt',
+    dir: 'desc',
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / rowsPerPage));
+  const paged = sorted.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const allSelected = paged.length > 0 && paged.every((b) => selected.has(buildKey(b)));
 
   const toggleAll = () => {
@@ -162,13 +181,18 @@ export default function BuildListPage() {
                   <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 </TableHead>
                 <TableHead className="w-16">No</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Base Image</TableHead>
-                <TableHead>Target Image</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Age</TableHead>
+                <SortableHead label="Name" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableHead label="Base Image" sortKey="baseImage" sort={sort} onSort={toggle} />
+                <SortableHead
+                  label="Target Image"
+                  sortKey="targetImage"
+                  sort={sort}
+                  onSort={toggle}
+                />
+                <SortableHead label="Project" sortKey="namespace" sort={sort} onSort={toggle} />
+                <SortableHead label="Owner" sortKey="username" sort={sort} onSort={toggle} />
+                <SortableHead label="Status" sortKey="phase" sort={sort} onSort={toggle} />
+                <SortableHead label="Age" sortKey="createdAt" sort={sort} onSort={toggle} />
               </TableRow>
             </TableHeader>
             <TableBody>
