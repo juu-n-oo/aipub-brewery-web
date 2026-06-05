@@ -70,9 +70,12 @@ POST /api/v1alpha1/logout             (RootLayout에서 호출)
 |--------|-----------|------|
 | GET | `/dockerfiles?project={project}` | 목록 조회 |
 | GET | `/dockerfiles/{id}` | 단건 조회 |
-| POST | `/dockerfiles` | 생성 |
-| PUT | `/dockerfiles/{id}` | 수정 |
+| POST | `/dockerfiles` | 생성 (리비전 v1 생성) |
+| PUT | `/dockerfiles/{id}` | 수정 (저장 시 새 리비전 생성) |
 | DELETE | `/dockerfiles/{id}` | 삭제 |
+| GET | `/dockerfiles/{id}/revisions` | 리비전(버전) 목록 — `DockerfileRevisionListPage` |
+| GET | `/dockerfiles/{id}/revisions/{version}` | 특정 리비전 단건 — Diff 뷰 |
+| POST | `/dockerfiles/{id}/revisions/{version}/rollback` | 해당 리비전으로 롤백 |
 
 ### Build (`src/api/build.ts`) → dockerizer backend
 

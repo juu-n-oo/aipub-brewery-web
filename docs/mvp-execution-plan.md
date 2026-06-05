@@ -309,7 +309,7 @@ SSE 포맷: `data: <line>\n\n`, 종료 이벤트는 `event: done\ndata: [DONE]\n
 MVP Definition of Done 이후 검토할 항목들. CLAUDE.md의 "향후 고도화 작업 리스트"와 연동.
 
 ### 9.1 Dockerfile 관리 고도화
-- 버전 관리(Git-like: commit/diff/rollback)
+- ~~버전 관리(Git-like: commit/diff/rollback)~~ → ✅ 구현 완료 (v1.2.0: 리비전 히스토리 + Diff + 롤백)
 - 템플릿 라이브러리 (PyTorch+CUDA, TensorFlow, JupyterLab, HuggingFace 등)
 - Fork/Clone
 - Lint & Best Practice 검증 (Hadolint, ML 특화 룰)
