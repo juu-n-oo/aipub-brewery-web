@@ -1,35 +1,28 @@
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { dockerfileApi } from '@/api/dockerfile';
-import type { Dockerfile, DockerfileCreateRequest, DockerfileUpdateRequest } from '@/types/dockerfile';
+import type { DockerfileCreateRequest, DockerfileUpdateRequest } from '@/types/dockerfile';
 
 const QUERY_KEY = 'dockerfiles';
 const REVISION_KEY = 'dockerfile-revisions';
 
-export function useDockerfiles(project: string) {
+/**
+ * Dockerfile 목록 조회. 권한에 따라 분기한다.
+ * - 관리자(isAdmin): 전체 조회(all=true). owner 로 username 필터링 가능. 백엔드가 최신순 정렬.
+ * - 멤버: 바인딩된 프로젝트 목록을 전달하면 백엔드가 본인 소유로 제한해 반환한다.
+ */
+export function useDockerfileList(params: {
+  isAdmin: boolean;
+  projects: string[];
+  owner?: string;
+}) {
+  const { isAdmin, projects, owner } = params;
   return useQuery({
-    queryKey: [QUERY_KEY, { project }],
-    queryFn: () => dockerfileApi.list(project),
-    enabled: !!project,
+    queryKey: isAdmin
+      ? [QUERY_KEY, 'all', { owner: owner ?? '' }]
+      : [QUERY_KEY, 'projects', { projects }],
+    queryFn: () => (isAdmin ? dockerfileApi.listAll(owner) : dockerfileApi.list(projects)),
+    enabled: isAdmin || projects.length > 0,
   });
-}
-
-export function useDockerfilesMulti(projectIds: string[]) {
-  const results = useQueries({
-    queries: projectIds.map((pid) => ({
-      queryKey: [QUERY_KEY, { project: pid }],
-      queryFn: () => dockerfileApi.list(pid),
-      enabled: !!pid,
-    })),
-  });
-
-  const isLoading = results.some((r) => r.isLoading);
-  const error = results.find((r) => r.error)?.error ?? null;
-  const data: Dockerfile[] = [];
-  for (const r of results) {
-    if (r.data) data.push(...r.data);
-  }
-
-  return { data, isLoading, error };
 }
 
 export function useDockerfile(id: number | undefined) {

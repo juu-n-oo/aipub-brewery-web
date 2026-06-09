@@ -9,8 +9,15 @@ import type {
 const BASE = '/dockerfiles';
 
 export const dockerfileApi = {
-  list: (project: string) =>
-    apiClient.get<Dockerfile[]>(BASE, { params: { project } }),
+  /** 멤버 조회: 바인딩된 프로젝트 목록을 전달한다. 백엔드가 토큰의 본인 username 으로 추가 제한한다. */
+  list: (projects: string[]) =>
+    apiClient.get<Dockerfile[]>(BASE, { params: { projects: projects.join(',') } }),
+
+  /** 관리자 전체 조회: all=true. username 으로 추가 필터링 가능. 비관리자가 호출하면 백엔드가 403 을 반환한다. */
+  listAll: (username?: string) =>
+    apiClient.get<Dockerfile[]>(BASE, {
+      params: username ? { all: 'true', username } : { all: 'true' },
+    }),
 
   get: (id: number) => apiClient.get<Dockerfile>(`${BASE}/${id}`),
 

@@ -21,7 +21,8 @@
     "save": "Dockerfile 저장",
     "unsupportedDirective": "MVP에서는 COPY/ADD 지시자를 지원하지 않습니다",
     "list": "Dockerfile 목록",
-    "empty": "생성된 Dockerfile이 없습니다"
+    "empty": "생성된 Dockerfile이 없습니다",
+    "ownerFilter": "소유자(username)로 필터"
   },
   "build": {
     "title": "이미지 빌드",

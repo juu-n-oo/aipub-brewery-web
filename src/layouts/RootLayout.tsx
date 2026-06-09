@@ -84,7 +84,7 @@ function Breadcrumb() {
 }
 
 function NoProjectGuard({ children }: { children: React.ReactNode }) {
-  const { projects, isLoading } = useAuth();
+  const { projects, isAdmin, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -99,7 +99,8 @@ function NoProjectGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isProtected && projects.length === 0) {
+  // 관리자는 바인딩된 프로젝트가 없어도 전체 Dockerfile/빌드를 조회할 수 있으므로 가드를 우회한다.
+  if (isProtected && !isAdmin && projects.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <AlertCircle className="mb-4 h-12 w-12 text-warning" />

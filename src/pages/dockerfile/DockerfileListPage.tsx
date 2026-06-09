@@ -11,7 +11,7 @@ import {
   ChevronRight,
   ChevronsRight,
 } from 'lucide-react';
-import { useDockerfilesMulti, useDeleteDockerfile } from '@/hooks/useDockerfiles';
+import { useDockerfileList, useDeleteDockerfile } from '@/hooks/useDockerfiles';
 import { useAuth } from '@/hooks/useAuthContext';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -48,14 +48,27 @@ const ALL_PROJECTS = '__all__';
 
 export default function DockerfileListPage() {
   const { t } = useTranslation();
-  const { projects } = useAuth();
+  const { isAdmin, projects } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const selectedProjectId = searchParams.get('projectId') ?? '';
   const projectIds = useMemo(() => projects.map((p) => p.name), [projects]);
+  // 멤버: 선택된 프로젝트 또는 바인딩된 전체 프로젝트(삭제된 프로젝트는 useAuth 에 포함되지 않음)
   const queryProjectIds = selectedProjectId ? [selectedProjectId] : projectIds;
 
-  const { data: allDockerfiles, isLoading, error } = useDockerfilesMulti(queryProjectIds);
+  // 관리자 전용: 서버사이드 username(소유자) 필터
+  const [ownerFilter, setOwnerFilter] = useState('');
+
+  const {
+    data,
+    isLoading,
+    error,
+  } = useDockerfileList({
+    isAdmin,
+    projects: queryProjectIds,
+    owner: isAdmin ? ownerFilter.trim() || undefined : undefined,
+  });
+  const allDockerfiles = useMemo(() => data ?? [], [data]);
   const deleteMutation = useDeleteDockerfile();
 
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -152,27 +165,44 @@ export default function DockerfileListPage() {
           {allDockerfiles.length > 0 && <Badge variant="count">{allDockerfiles.length}</Badge>}
         </div>
         <div className="flex items-center gap-2">
-          {/* Project Filter */}
-          <Select
-            value={selectedProjectId || ALL_PROJECTS}
-            onValueChange={(v) => {
-              if (v && v !== ALL_PROJECTS) setSearchParams({ projectId: v });
-              else setSearchParams({});
-              setCurrentPage(1);
-            }}
-          >
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="모든 프로젝트" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_PROJECTS}>모든 프로젝트</SelectItem>
-              {projectIds.map((pid) => (
-                <SelectItem key={pid} value={pid}>
-                  {pid}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isAdmin ? (
+            /* Admin: 소유자(username) 서버사이드 필터 */
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder={t('dockerfile.ownerFilter')}
+                value={ownerFilter}
+                onChange={(e) => {
+                  setOwnerFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-9 w-48 rounded-md border border-input bg-transparent pl-9 pr-3 text-sm outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
+              />
+            </div>
+          ) : (
+            /* Member: Project Filter (바인딩된 프로젝트) */
+            <Select
+              value={selectedProjectId || ALL_PROJECTS}
+              onValueChange={(v) => {
+                if (v && v !== ALL_PROJECTS) setSearchParams({ projectId: v });
+                else setSearchParams({});
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="모든 프로젝트" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_PROJECTS}>모든 프로젝트</SelectItem>
+                {projectIds.map((pid) => (
+                  <SelectItem key={pid} value={pid}>
+                    {pid}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button asChild>
             <Link to="/dockerfiles/new">
               <Plus className="h-4 w-4" />

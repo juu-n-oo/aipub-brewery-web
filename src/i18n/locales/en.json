@@ -21,7 +21,8 @@
     "save": "Save Dockerfile",
     "unsupportedDirective": "COPY/ADD directives are not supported in MVP",
     "list": "Dockerfile List",
-    "empty": "No Dockerfiles created yet"
+    "empty": "No Dockerfiles created yet",
+    "ownerFilter": "Filter by owner (username)"
   },
   "build": {
     "title": "Image Build",

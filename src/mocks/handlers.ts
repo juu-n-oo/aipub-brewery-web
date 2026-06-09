@@ -376,10 +376,26 @@ export const handlers = [
   http.get('/api/v1alpha1/dockerfiles', async ({ request }) => {
     await delay(300);
     const url = new URL(request.url);
-    const project = url.searchParams.get('project');
-    const filtered = project
-      ? dockerfiles.filter((df) => df.project === project)
-      : dockerfiles;
+    const all = url.searchParams.get('all') === 'true';
+    const username = url.searchParams.get('username');
+    const projectsParam = url.searchParams.get('projects');
+    // 토큰 기반 호출자 — 목에서는 selfsubjectreview 와 동일한 사용자로 가정
+    const caller = 'joonwoo';
+
+    let filtered;
+    if (all) {
+      // 관리자 전체 조회 (+ username 필터), 생성 일시 최신순
+      filtered = username ? dockerfiles.filter((df) => df.username === username) : [...dockerfiles];
+    } else {
+      // 멤버 조회: projects IN + 호출자 본인 username
+      const projects = projectsParam ? projectsParam.split(',').filter(Boolean) : [];
+      filtered = dockerfiles.filter(
+        (df) => projects.includes(df.project) && df.username === caller,
+      );
+    }
+    filtered = filtered.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
     return HttpResponse.json(filtered);
   }),
 
