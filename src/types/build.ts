@@ -1,3 +1,5 @@
+import type { Dockerfile } from '@/types/dockerfile';
+
 export type BuildPhase = 'Pending' | 'Preparing' | 'Building' | 'Succeeded' | 'Failed';
 
 export interface ImageBuild {
@@ -16,8 +18,14 @@ export interface ImageBuild {
   completionTime?: string;
 }
 
-export interface ImageBuildRequest {
-  dockerfileId: number;
+/**
+ * 빌드 실행 입력. 프론트가 ImageBuild CR 을 직접 조립하므로 저장된 Dockerfile 전체와 빌드 옵션을 받는다.
+ * (CR spec 에 dockerfileContent 를 inline 하고, 라벨/어노테이션에 dockerfile 메타를 싣는다.)
+ */
+export interface RunBuildInput {
+  /** 저장된 Dockerfile (EDIT 모드=조회분, CREATE-후-빌드=생성 응답). 에디터 버퍼가 아닌 저장본을 쓴다. */
+  dockerfile: Dockerfile;
+  /** ImageHub/ImageName 까지의 이미지 ref (태그 제외) */
   targetImage: string;
   tag: string;
   pushSecretRef?: string;

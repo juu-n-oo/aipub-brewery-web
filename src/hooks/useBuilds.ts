@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { buildApi } from '@/api/build';
-import type { ImageBuild, ImageBuildRequest } from '@/types/build';
+import type { ImageBuild, RunBuildInput } from '@/types/build';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const QUERY_KEY = 'builds';
@@ -117,7 +117,7 @@ export function useRunBuild() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: ImageBuildRequest) => buildApi.run(data),
+    mutationFn: (data: RunBuildInput) => buildApi.run(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     },

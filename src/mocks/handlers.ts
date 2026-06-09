@@ -566,27 +566,33 @@ export const handlers = [
     return HttpResponse.json(build);
   }),
 
-  http.post('/api/v1alpha1/builds', async ({ request }) => {
+  // 빌드 실행: 프론트가 k8sproxy 로 ImageBuild CR 을 직접 생성한다 (buildApi.run).
+  http.post(
+    '/api/v1alpha1/k8sproxy/apis/dockerizer.aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds',
+    async ({ params, request }) => {
     await delay(500);
-    const body = (await request.json()) as {
-      dockerfileId: number;
-      targetImage: string;
-      tag: string;
+    const ns = params.ns as string;
+    const cr = (await request.json()) as {
+      metadata?: {
+        generateName?: string;
+        name?: string;
+        labels?: Record<string, string>;
+        annotations?: Record<string, string>;
+      };
+      spec?: { targetImage?: string; dockerfileContent?: string };
     };
-
-    const df = dockerfiles.find((d) => d.id === body.dockerfileId);
-    if (!df) {
-      return HttpResponse.json({ message: 'Dockerfile not found' }, { status: 404 });
-    }
-
-    const buildName = `imagebuild-${Math.random().toString(36).substring(2, 10)}`;
+    const labels = cr.metadata?.labels ?? {};
+    const annotations = cr.metadata?.annotations ?? {};
+    const prefix = cr.metadata?.generateName ?? 'imagebuild-';
+    const buildName = cr.metadata?.name ?? `${prefix}${Math.random().toString(36).substring(2, 10)}`;
     const newBuild: ImageBuild = {
       name: buildName,
-      namespace: df.project,
-      dockerfileId: body.dockerfileId,
-      targetImage: `${body.targetImage}:${body.tag}`,
+      namespace: ns,
+      dockerfileId: Number(labels['dockerizer.aipub.ten1010.io/dockerfile-id'] ?? 0),
+      targetImage: cr.spec?.targetImage ?? '',
+      baseImage: annotations['dockerizer.aipub.ten1010.io/base-image'],
       phase: 'Pending',
-      username: 'joonwoo',
+      username: labels['dockerizer.aipub.ten1010.io/username'] ?? 'joonwoo',
       createdAt: new Date().toISOString(),
     };
     builds.unshift(newBuild);
@@ -611,8 +617,9 @@ export const handlers = [
       }
     }, 10000);
 
-    return HttpResponse.json(newBuild, { status: 202 });
-  }),
+    return HttpResponse.json(toImageBuildCr(newBuild), { status: 201 });
+    },
+  ),
 
   http.get('/api/v1alpha1/builds/:ns/:name/logs', async ({ params }) => {
     await delay(200);

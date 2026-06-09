@@ -64,6 +64,13 @@ export const k8sApi = {
   listImageBuilds: (namespace: string) =>
     k8sRequest<ImageBuildList>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds`),
 
+  /** ImageBuild CR 생성 — 프론트가 k8sproxy 로 직접 생성한다(백엔드 우회). 사용자 AIPub 신원의 RBAC 필요. */
+  createImageBuild: (namespace: string, cr: unknown) =>
+    k8sRequest<ImageBuildCr>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds`, {
+      method: 'POST',
+      body: JSON.stringify(cr),
+    }),
+
   /** ImageBuild CR 단건 조회 */
   getImageBuild: (namespace: string, name: string) =>
     k8sRequest<ImageBuildCr>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds/${name}`),

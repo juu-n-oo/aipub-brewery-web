@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useDockerfile, useCreateDockerfile, useUpdateDockerfile } from '@/hooks/useDockerfiles';
 import { useRunBuild } from '@/hooks/useBuilds';
+import type { Dockerfile } from '@/types/dockerfile';
 import { useAuth } from '@/hooks/useAuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
@@ -618,27 +619,30 @@ export default function DockerfileEditorPage() {
     // 빌드 컨텍스트 Volume → PVC (해석 로직은 buildContextPvc 로 단일화)
     const pvcName = buildContextPvc;
 
-    // dockerfileId 만 다르고 나머지 빌드 옵션은 동일하다.
-    const buildRequest = (id: number) => ({
-      dockerfileId: id,
+    // 빌드 옵션(타깃/태그/컨텍스트)은 동일, 대상 Dockerfile 만 다르다.
+    // 프론트가 CR 을 직접 만들므로 저장된 Dockerfile 의 content/baseImage 등을 그대로 싣는다.
+    const buildOptions = {
       targetImage: targetImageRef,
       tag: targetTag,
       ...(pvcName ? { buildContextPvc: pvcName } : {}),
       ...(buildContextSubPath ? { buildContextSubPath } : {}),
-    });
+    };
 
-    const startBuild = (id: number) =>
-      runBuildMutation.mutate(buildRequest(id), {
-        onSuccess: (build) => {
-          setShowBuildDialog(false);
-          setBuildAfterCreate(false);
-          navigate(`/builds/${build.namespace}/${build.name}`);
+    const startBuild = (df: Dockerfile) =>
+      runBuildMutation.mutate(
+        { dockerfile: df, ...buildOptions },
+        {
+          onSuccess: (build) => {
+            setShowBuildDialog(false);
+            setBuildAfterCreate(false);
+            navigate(`/builds/${build.namespace}/${build.name}`);
+          },
         },
-      });
+      );
 
     // EDIT 모드: 이미 저장된 Dockerfile 로 바로 빌드.
     if (dockerfileId !== undefined) {
-      startBuild(dockerfileId);
+      if (existing) startBuild(existing);
       return;
     }
 
@@ -656,7 +660,9 @@ export default function DockerfileEditorPage() {
       {
         onSuccess: (created) => {
           // 빌드가 실패해도 Dockerfile 은 이미 저장된 상태.
-          runBuildMutation.mutate(buildRequest(created.id), {
+          runBuildMutation.mutate(
+            { dockerfile: created, ...buildOptions },
+            {
             onSuccess: (build) => {
               setShowBuildDialog(false);
               setBuildAfterCreate(false);
