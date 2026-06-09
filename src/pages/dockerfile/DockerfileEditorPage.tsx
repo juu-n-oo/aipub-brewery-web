@@ -392,6 +392,14 @@ export default function DockerfileEditorPage() {
   const [selectedImageHub, setSelectedImageHub] = useState('');
   const [buildContextVolume, setBuildContextVolume] = useState('');
   const [buildContextSubPath, setBuildContextSubPath] = useState('');
+  // 이미지 메타데이터(OCI 라벨) 입력. 빈 값은 build.ts 가 기본값으로 채우거나 생략한다.
+  const [imgVersion, setImgVersion] = useState('');
+  const [imgAuthors, setImgAuthors] = useState('');
+  const [imgLicenses, setImgLicenses] = useState('');
+  const [imgUrl, setImgUrl] = useState('');
+  const [imgDocumentation, setImgDocumentation] = useState('');
+  const [customLabels, setCustomLabels] = useState<{ key: string; value: string }[]>([]);
+  const [metaTab, setMetaTab] = useState<'advanced' | 'custom'>('advanced');
   // "생성 후 빌드" 의도 기억: true 이면 빌드 다이얼로그 확인 시 생성→빌드를 연속 수행한다.
   const [buildAfterCreate, setBuildAfterCreate] = useState(false);
   const [revisionMessage, setRevisionMessage] = useState('');
@@ -626,6 +634,14 @@ export default function DockerfileEditorPage() {
       tag: targetTag,
       ...(pvcName ? { buildContextPvc: pvcName } : {}),
       ...(buildContextSubPath ? { buildContextSubPath } : {}),
+      metadata: {
+        version: imgVersion,
+        authors: imgAuthors,
+        licenses: imgLicenses,
+        url: imgUrl,
+        documentation: imgDocumentation,
+        customLabels,
+      },
     };
 
     const startBuild = (df: Dockerfile) =>
@@ -1195,6 +1211,145 @@ export default function DockerfileEditorPage() {
                 </div>
               </div>
             )}
+
+            {/* 이미지 메타데이터 (OCI 라벨) */}
+            <hr className="border-border" />
+            <div className="flex flex-col gap-3">
+              <div>
+                <Label>이미지 메타데이터 (선택)</Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  빌드된 이미지에 OCI 표준 라벨로 baking 됩니다. 작성자·리비전·베이스 이미지 등은
+                  자동으로 기록됩니다.
+                </p>
+              </div>
+
+              {/* 기본 필드 (항상 표시) */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label>Version</Label>
+                  <Input
+                    value={imgVersion}
+                    onChange={(e) => setImgVersion(e.target.value)}
+                    placeholder={`미입력 시 태그(${targetTag}) 사용`}
+                    className="h-11 text-sm"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Authors</Label>
+                  <Input
+                    value={imgAuthors}
+                    onChange={(e) => setImgAuthors(e.target.value)}
+                    placeholder={
+                      existing?.username
+                        ? `미입력 시 ${existing.username}`
+                        : '미입력 시 Dockerfile 소유자'
+                    }
+                    className="h-11 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* 탭: 추가 설정 / 커스텀 라벨 */}
+              <div className="flex rounded-lg border border-border overflow-hidden self-start">
+                <button
+                  type="button"
+                  onClick={() => setMetaTab('advanced')}
+                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'advanced' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                >
+                  추가 설정
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetaTab('custom')}
+                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'custom' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                >
+                  커스텀 라벨
+                </button>
+              </div>
+
+              {metaTab === 'advanced' ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>License</Label>
+                    <Input
+                      value={imgLicenses}
+                      onChange={(e) => setImgLicenses(e.target.value)}
+                      placeholder="예: Apache-2.0, MIT (SPDX expression)"
+                      className="h-11 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>URL</Label>
+                    <Input
+                      value={imgUrl}
+                      onChange={(e) => setImgUrl(e.target.value)}
+                      placeholder="예: https://github.com/org/repo"
+                      className="h-11 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Documentation</Label>
+                    <Input
+                      value={imgDocumentation}
+                      onChange={(e) => setImgDocumentation(e.target.value)}
+                      placeholder="예: https://docs.example.com"
+                      className="h-11 text-sm"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {customLabels.length === 0 ? (
+                    <p className="text-sm text-muted-foreground/70">
+                      커스텀 라벨이 없습니다. 아래 버튼으로 key-value 를 추가하세요.
+                    </p>
+                  ) : (
+                    customLabels.map((pair, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Key (예: com.example.team)"
+                          value={pair.key}
+                          onChange={(e) =>
+                            setCustomLabels((prev) =>
+                              prev.map((p, i) => (i === idx ? { ...p, key: e.target.value } : p)),
+                            )
+                          }
+                          className="flex-1 h-10 text-sm font-mono"
+                        />
+                        <span className="text-muted-foreground/70 text-sm">=</span>
+                        <Input
+                          placeholder="Value"
+                          value={pair.value}
+                          onChange={(e) =>
+                            setCustomLabels((prev) =>
+                              prev.map((p, i) => (i === idx ? { ...p, value: e.target.value } : p)),
+                            )
+                          }
+                          className="flex-1 h-10 text-sm font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCustomLabels((prev) => prev.filter((_, i) => i !== idx))}
+                          className="p-1.5 rounded hover:bg-card text-destructive shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => setCustomLabels((prev) => [...prev, { key: '', value: '' }])}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    key-value 추가
+                  </Button>
+                </div>
+              )}
+            </div>
 
             {/* 빌드 컨텍스트 (COPY 사용 시) */}
             {hasCopyInstruction && (
