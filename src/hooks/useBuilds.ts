@@ -53,7 +53,8 @@ export function useBuildLogs(namespace: string, name: string) {
     queryKey: [QUERY_KEY, namespace, name, 'logs'],
     queryFn: () => buildApi.getLogs(namespace, name),
     enabled: !!namespace && !!name,
-    refetchInterval: 5000,
+    // 로그를 가져올 수 없으면(404 등) 무한 폴링하지 않고 멈춘다.
+    refetchInterval: (query) => (query.state.error ? false : 5000),
   });
 }
 

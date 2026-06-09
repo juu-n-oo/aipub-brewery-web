@@ -31,6 +31,7 @@
     "tagPlaceholder": "e.g. v1.0.0",
     "status": "Build Status",
     "log": "Build Log",
+    "logUnavailable": "Logs are not available",
     "history": "Build History",
     "phase": {
       "Pending": "Pending",

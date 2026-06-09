@@ -11,6 +11,7 @@ import {
   Package,
   Circle,
   FileCode2,
+  AlertCircle,
 } from 'lucide-react';
 import { useBuild, useBuildLogStream, useBuildLogs } from '@/hooks/useBuilds';
 import { Button } from '@/components/ui/Button';
@@ -76,7 +77,7 @@ export default function BuildDetailPage() {
     done: streamDone,
     text: streamText,
   } = useBuildLogStream(namespace, name, isActive ?? false);
-  const { data: staticLogs } = useBuildLogs(namespace, name);
+  const { data: staticLogs, error: logsError } = useBuildLogs(namespace, name);
 
   const logText = streamText || staticLogs || '';
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -248,7 +249,12 @@ export default function BuildDetailPage() {
             className="min-h-[500px] max-h-[calc(100vh-280px)] flex-1 overflow-auto rounded-lg border bg-[#1e1e1e]"
           >
             <div className="p-4">
-              {!logText ? (
+              {logsError && !isActive ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-20 text-destructive">
+                  <AlertCircle className="h-6 w-6" />
+                  <span className="text-sm">{t('build.logUnavailable')}</span>
+                </div>
+              ) : !logText ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="h-5 w-5 animate-spin text-[#666]" />
                 </div>

@@ -605,6 +605,20 @@ export const handlers = [
     const build = builds.find((b) => b.namespace === ns && b.name === name);
     if (!build) return new HttpResponse(null, { status: 404 });
 
+    // 완료된 빌드인데 Pod GC + OpenSearch 미보관으로 로그 소스가 전부 없는 경우.
+    // 백엔드는 Spring ProblemDetail(JSON) 본문과 함께 404 를 반환한다.
+    if (name === 'imagebuild-e5f6a7b8') {
+      return HttpResponse.json(
+        {
+          type: 'about:blank',
+          title: 'Not Found',
+          status: 404,
+          detail: 'Build logs are not available',
+        },
+        { status: 404, headers: { 'Content-Type': 'application/problem+json' } },
+      );
+    }
+
     const logs = generateMockLogs(build);
     return new HttpResponse(logs, {
       headers: { 'Content-Type': 'text/plain' },
