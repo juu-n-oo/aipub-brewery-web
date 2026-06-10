@@ -120,6 +120,9 @@ const OCI_LABEL_KEYS = {
   documentation: `${OCI_PREFIX}.documentation`,
 } as const;
 
+/** 전용 입력 필드(또는 자동 title)로 관리되는 라벨 키 — 커스텀 라벨에서 중복 지정 시 경고. */
+const MANAGED_LABEL_KEYS = new Set<string>(Object.values(OCI_LABEL_KEYS));
+
 /** LABEL 값 인용/이스케이프 ("..." 로 감싸고 \, " 를 이스케이프). */
 function quoteLabelValue(v: string): string {
   return `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
@@ -371,13 +374,6 @@ function generateDockerfileContent(fields: DockerfileFields, imageTitle = ''): s
   lines.push(`FROM ${fields.baseImage || '<base-image>'}`);
   lines.push('');
 
-  // 이미지 메타데이터 LABEL (FROM 바로 아래, 최상단). title 은 Dockerfile 이름에서 자동. 빈 값은 생략.
-  const labelLines = buildLabelLines(fields.labels, imageTitle);
-  if (labelLines.length > 0) {
-    labelLines.forEach((l) => lines.push(l));
-    lines.push('');
-  }
-
   for (const instr of fields.instructions) {
     switch (instr.type) {
       case 'RUN':
@@ -425,6 +421,14 @@ function generateDockerfileContent(fields: DockerfileFields, imageTitle = ''): s
   if (fields.cmd.trim()) {
     const cmdParts = fields.cmd.trim().split(/\s+/);
     lines.push(`CMD [${cmdParts.map((p) => `"${p}"`).join(', ')}]`);
+  }
+
+  // 이미지 메타데이터 LABEL (최하단). title 은 Dockerfile 이름에서 자동. 빈 값은 생략.
+  // 라벨만 바뀔 때 위쪽 RUN 레이어 캐시가 깨지지 않도록 맨 끝에 둔다.
+  const labelLines = buildLabelLines(fields.labels, imageTitle);
+  if (labelLines.length > 0) {
+    if (lines[lines.length - 1] !== '') lines.push('');
+    labelLines.forEach((l) => lines.push(l));
   }
 
   return lines.join('\n') + '\n';
@@ -879,6 +883,19 @@ export default function DockerfileEditorPage() {
   const hasCopyInstruction =
     fields.instructions.some((i) => i.type === 'COPY_VOLUME') || /^COPY\s/m.test(content);
 
+  // 모든 ENV 블록을 통틀어 2회 이상 등장하는 키 집합 (중복 경고용). 빈 키는 제외.
+  const duplicateEnvKeys = (() => {
+    const counts = new Map<string, number>();
+    for (const instr of fields.instructions) {
+      if (instr.type !== 'ENV') continue;
+      for (const p of instr.envPairs ?? []) {
+        const k = p.key.trim();
+        if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+    }
+    return new Set([...counts.entries()].filter(([, c]) => c > 1).map(([k]) => k));
+  })();
+
   // COPY 명령이 참조할 빌드 컨텍스트 Volume → PVC 해석
   // (다이얼로그 선택 > COPY_VOLUME 명령의 volumeName > COPY 감지 시 첫 번째 Volume)
   const buildContextVolName =
@@ -1142,6 +1159,7 @@ export default function DockerfileEditorPage() {
                           total={fields.instructions.length}
                           volumes={volumes}
                           namespace={selectedProjectId}
+                          duplicateEnvKeys={duplicateEnvKeys}
                           onUpdate={(patch) => updateInstruction(instr.id, patch)}
                           onRemove={() => removeInstruction(instr.id)}
                           onMove={(dir) => moveInstruction(idx, dir)}
@@ -1321,46 +1339,63 @@ export default function DockerfileEditorPage() {
                         커스텀 라벨이 없습니다. 아래 버튼으로 key-value 를 추가하세요.
                       </p>
                     ) : (
-                      fields.labels.custom.map((pair, idx) => (
-                        <div key={idx} className="flex gap-2 items-center">
-                          <Input
-                            placeholder="Key (예: com.example.team)"
-                            value={pair.key}
-                            onChange={(e) =>
-                              updateLabel({
-                                custom: fields.labels.custom.map((p, i) =>
-                                  i === idx ? { ...p, key: e.target.value } : p,
-                                ),
-                              })
-                            }
-                            className="flex-1 h-10 text-sm font-mono"
-                          />
-                          <span className="text-muted-foreground/70 text-sm">=</span>
-                          <Input
-                            placeholder="Value"
-                            value={pair.value}
-                            onChange={(e) =>
-                              updateLabel({
-                                custom: fields.labels.custom.map((p, i) =>
-                                  i === idx ? { ...p, value: e.target.value } : p,
-                                ),
-                              })
-                            }
-                            className="flex-1 h-10 text-sm font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateLabel({
-                                custom: fields.labels.custom.filter((_, i) => i !== idx),
-                              })
-                            }
-                            className="p-1.5 rounded hover:bg-card text-destructive shrink-0"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))
+                      fields.labels.custom.map((pair, idx) => {
+                        const k = pair.key.trim();
+                        const isManaged = !!k && MANAGED_LABEL_KEYS.has(k);
+                        const isDup =
+                          !!k &&
+                          fields.labels.custom.filter((p) => p.key.trim() === k).length > 1;
+                        return (
+                          <div key={idx} className="flex flex-col gap-1">
+                            <div className="flex gap-2 items-center">
+                              <Input
+                                placeholder="Key (예: com.example.team)"
+                                value={pair.key}
+                                aria-invalid={isManaged || isDup}
+                                onChange={(e) =>
+                                  updateLabel({
+                                    custom: fields.labels.custom.map((p, i) =>
+                                      i === idx ? { ...p, key: e.target.value } : p,
+                                    ),
+                                  })
+                                }
+                                className="flex-1 h-10 text-sm font-mono"
+                              />
+                              <span className="text-muted-foreground/70 text-sm">=</span>
+                              <Input
+                                placeholder="Value"
+                                value={pair.value}
+                                onChange={(e) =>
+                                  updateLabel({
+                                    custom: fields.labels.custom.map((p, i) =>
+                                      i === idx ? { ...p, value: e.target.value } : p,
+                                    ),
+                                  })
+                                }
+                                className="flex-1 h-10 text-sm font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateLabel({
+                                    custom: fields.labels.custom.filter((_, i) => i !== idx),
+                                  })
+                                }
+                                className="p-1.5 rounded hover:bg-card text-destructive shrink-0"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            {(isManaged || isDup) && (
+                              <p className="text-xs text-warning pl-0.5">
+                                {isManaged
+                                  ? '이 키는 위 입력 필드(Version/Authors/License/URL/Documentation/title)로 이미 관리됩니다. 커스텀에 같은 키를 넣으면 마지막 값으로 덮어써집니다.'
+                                  : '중복된 키입니다. 같은 키가 여러 개면 마지막 값만 적용됩니다.'}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })
                     )}
                     <Button
                       type="button"
@@ -1650,6 +1685,7 @@ function InstructionBlock({
   idx,
   total,
   namespace,
+  duplicateEnvKeys,
   onUpdate,
   onRemove,
   onMove,
@@ -1659,6 +1695,7 @@ function InstructionBlock({
   total: number;
   volumes?: unknown;
   namespace: string;
+  duplicateEnvKeys?: Set<string>;
   onUpdate: (patch: Partial<Instruction>) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
@@ -1781,29 +1818,38 @@ function InstructionBlock({
               const next = pairs.filter((_, i) => i !== pidx);
               onUpdate({ envPairs: next });
             };
+            const dupKey = !!pair.key.trim() && !!duplicateEnvKeys?.has(pair.key.trim());
             return (
-              <div key={pidx} className="flex gap-2 items-center">
-                <Input
-                  placeholder="Key"
-                  value={pair.key}
-                  onChange={(e) => updatePair({ key: e.target.value })}
-                  className="flex-1 h-10 text-sm font-mono"
-                />
-                <span className="text-muted-foreground/70 text-sm">=</span>
-                <Input
-                  placeholder="Value"
-                  value={pair.value}
-                  onChange={(e) => updatePair({ value: e.target.value })}
-                  className="flex-1 h-10 text-sm font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={removePair}
-                  disabled={pairs.length <= 1}
-                  className="p-1.5 rounded hover:bg-card text-destructive disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+              <div key={pidx} className="flex flex-col gap-1">
+                <div className="flex gap-2 items-center">
+                  <Input
+                    placeholder="Key"
+                    value={pair.key}
+                    aria-invalid={dupKey}
+                    onChange={(e) => updatePair({ key: e.target.value })}
+                    className="flex-1 h-10 text-sm font-mono"
+                  />
+                  <span className="text-muted-foreground/70 text-sm">=</span>
+                  <Input
+                    placeholder="Value"
+                    value={pair.value}
+                    onChange={(e) => updatePair({ value: e.target.value })}
+                    className="flex-1 h-10 text-sm font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={removePair}
+                    disabled={pairs.length <= 1}
+                    className="p-1.5 rounded hover:bg-card text-destructive disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                {dupKey && (
+                  <p className="text-xs text-warning pl-0.5">
+                    중복된 ENV 키입니다. 같은 키가 여러 개면 마지막 값만 적용됩니다.
+                  </p>
+                )}
               </div>
             );
           })}
