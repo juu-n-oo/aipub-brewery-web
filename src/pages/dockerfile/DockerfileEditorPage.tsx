@@ -123,6 +123,16 @@ const OCI_LABEL_KEYS = {
 /** 전용 입력 필드(또는 자동 title)로 관리되는 라벨 키 — 커스텀 라벨에서 중복 지정 시 경고. */
 const MANAGED_LABEL_KEYS = new Set<string>(Object.values(OCI_LABEL_KEYS));
 
+/** 드롭다운으로 추가하는 표준(OCI) 메타데이터 필드 정의. title 은 Dockerfile 이름에서 자동이라 제외. */
+type StandardMetaKey = 'version' | 'authors' | 'licenses' | 'url' | 'documentation';
+const STANDARD_META: { key: StandardMetaKey; label: string; placeholder: string }[] = [
+  { key: 'version', label: 'Version', placeholder: '예: 1.0.0' },
+  { key: 'authors', label: 'Authors', placeholder: '예: joonwoo' },
+  { key: 'licenses', label: 'License', placeholder: '예: Apache-2.0, MIT (SPDX expression)' },
+  { key: 'url', label: 'URL', placeholder: '예: https://github.com/org/repo' },
+  { key: 'documentation', label: 'Documentation', placeholder: '예: https://docs.example.com' },
+];
+
 /** LABEL 값 인용/이스케이프 ("..." 로 감싸고 \, " 를 이스케이프). */
 function quoteLabelValue(v: string): string {
   return `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
@@ -540,7 +550,9 @@ export default function DockerfileEditorPage() {
   const [buildContextVolume, setBuildContextVolume] = useState('');
   const [buildContextSubPath, setBuildContextSubPath] = useState('');
   // 이미지 메타데이터(OCI 라벨)는 fields.labels 에 보관 → Dockerfile content 의 LABEL 로 생성/파싱된다.
-  const [metaTab, setMetaTab] = useState<'advanced' | 'custom'>('advanced');
+  // shownMeta: 드롭다운으로 추가되어 화면에 표시 중인 표준 필드 집합 (값이 있으면 자동 표시).
+  const [showAddMeta, setShowAddMeta] = useState(false);
+  const [shownMeta, setShownMeta] = useState<Set<StandardMetaKey>>(new Set());
   // "생성 후 빌드" 의도 기억: true 이면 빌드 다이얼로그 확인 시 생성→빌드를 연속 수행한다.
   const [buildAfterCreate, setBuildAfterCreate] = useState(false);
   const [revisionMessage, setRevisionMessage] = useState('');
@@ -613,6 +625,21 @@ export default function DockerfileEditorPage() {
           },
     );
   }, [isEdit, username]);
+
+  // 값이 있는 표준 메타데이터(prefill/파싱 결과)는 자동으로 표시한다. (추가만, 제거는 trash 로만)
+  useEffect(() => {
+    setShownMeta((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const { key } of STANDARD_META) {
+        if (fields.labels[key]?.trim() && !next.has(key)) {
+          next.add(key);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [fields.labels]);
 
   // imageHub 목록이 로드되면 첫 번째를 기본 선택
   useEffect(() => {
@@ -714,6 +741,27 @@ export default function DockerfileEditorPage() {
   // 이미지 메타데이터(LABEL) 패치
   const updateLabel = (patch: Partial<ImageLabelFields>) =>
     setFields((p) => ({ ...p, labels: { ...p.labels, ...patch } }));
+
+  const updateStandardLabel = (k: StandardMetaKey, v: string) =>
+    setFields((p) => ({ ...p, labels: { ...p.labels, [k]: v } }));
+
+  // 드롭다운에서 표준 필드 추가 / trash 로 제거(값도 비움) / 커스텀 라벨 행 추가
+  const addMeta = (k: StandardMetaKey) => {
+    setShownMeta((prev) => new Set(prev).add(k));
+    setShowAddMeta(false);
+  };
+  const removeMeta = (k: StandardMetaKey) => {
+    setShownMeta((prev) => {
+      const n = new Set(prev);
+      n.delete(k);
+      return n;
+    });
+    updateStandardLabel(k, '');
+  };
+  const addCustomLabel = () => {
+    updateLabel({ custom: [...fields.labels.custom, { key: '', value: '' }] });
+    setShowAddMeta(false);
+  };
 
   /* ── Submit ── */
 
@@ -1261,156 +1309,136 @@ export default function DockerfileEditorPage() {
             {/* 이미지 메타데이터 (OCI LABEL) — Dockerfile content 의 LABEL 로 반영됨 */}
             <section>
               <h2 className="text-lg font-bold text-foreground mb-4">이미지 메타데이터 (선택)</h2>
-              <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 max-w-3xl">
-                {/* 기본 필드 (항상 표시) */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Version</Label>
-                    <Input
-                      value={fields.labels.version}
-                      onChange={(e) => updateLabel({ version: e.target.value })}
-                      placeholder="예: 1.0.0"
-                      className="h-11 text-sm"
-                    />
+              <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-4 max-w-3xl">
+                {/* 추가된 표준 메타데이터 필드 */}
+                {STANDARD_META.filter((m) => shownMeta.has(m.key)).map((m) => (
+                  <div key={m.key} className="flex flex-col gap-1.5">
+                    <Label>{m.label}</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        value={fields.labels[m.key]}
+                        onChange={(e) => updateStandardLabel(m.key, e.target.value)}
+                        placeholder={
+                          m.key === 'authors' ? existing?.username || m.placeholder : m.placeholder
+                        }
+                        className="flex-1 h-10 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeMeta(m.key)}
+                        className="p-1.5 rounded hover:bg-muted text-destructive shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Authors</Label>
-                    <Input
-                      value={fields.labels.authors}
-                      onChange={(e) => updateLabel({ authors: e.target.value })}
-                      placeholder={existing?.username || '예: joonwoo'}
-                      className="h-11 text-sm"
-                    />
-                  </div>
-                </div>
+                ))}
 
-                {/* 탭: 추가 설정 / 커스텀 라벨 */}
-                <div className="flex rounded-lg border border-border overflow-hidden self-start">
-                  <button
-                    type="button"
-                    onClick={() => setMetaTab('advanced')}
-                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'advanced' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
-                  >
-                    추가 설정
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMetaTab('custom')}
-                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'custom' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
-                  >
-                    커스텀 라벨
-                  </button>
-                </div>
+                {/* 커스텀 라벨 행 */}
+                {fields.labels.custom.map((pair, idx) => {
+                  const k = pair.key.trim();
+                  const isManaged = !!k && MANAGED_LABEL_KEYS.has(k);
+                  const isDup =
+                    !!k && fields.labels.custom.filter((p) => p.key.trim() === k).length > 1;
+                  return (
+                    <div key={idx} className="flex flex-col gap-1.5">
+                      <Label>커스텀 라벨</Label>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            placeholder="Key (예: com.example.team)"
+                            value={pair.key}
+                            aria-invalid={isManaged || isDup}
+                            onChange={(e) =>
+                              updateLabel({
+                                custom: fields.labels.custom.map((p, i) =>
+                                  i === idx ? { ...p, key: e.target.value } : p,
+                                ),
+                              })
+                            }
+                            className="flex-1 h-10 text-sm font-mono"
+                          />
+                          <span className="text-muted-foreground/70 text-sm">=</span>
+                          <Input
+                            placeholder="Value"
+                            value={pair.value}
+                            onChange={(e) =>
+                              updateLabel({
+                                custom: fields.labels.custom.map((p, i) =>
+                                  i === idx ? { ...p, value: e.target.value } : p,
+                                ),
+                              })
+                            }
+                            className="flex-1 h-10 text-sm font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateLabel({
+                                custom: fields.labels.custom.filter((_, i) => i !== idx),
+                              })
+                            }
+                            className="p-1.5 rounded hover:bg-muted text-destructive shrink-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {(isManaged || isDup) && (
+                          <p className="text-xs text-warning pl-0.5">
+                            {isManaged
+                              ? '이 키는 Version/Authors/License/URL/Documentation/title 로 이미 관리됩니다. 같은 키를 넣으면 마지막 값으로 덮어써집니다.'
+                              : '중복된 키입니다. 같은 키가 여러 개면 마지막 값만 적용됩니다.'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
 
-                {metaTab === 'advanced' ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <Label>License</Label>
-                      <Input
-                        value={fields.labels.licenses}
-                        onChange={(e) => updateLabel({ licenses: e.target.value })}
-                        placeholder="예: Apache-2.0, MIT (SPDX expression)"
-                        className="h-11 text-sm"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label>URL</Label>
-                      <Input
-                        value={fields.labels.url}
-                        onChange={(e) => updateLabel({ url: e.target.value })}
-                        placeholder="예: https://github.com/org/repo"
-                        className="h-11 text-sm"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label>Documentation</Label>
-                      <Input
-                        value={fields.labels.documentation}
-                        onChange={(e) => updateLabel({ documentation: e.target.value })}
-                        placeholder="예: https://docs.example.com"
-                        className="h-11 text-sm"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {fields.labels.custom.length === 0 ? (
-                      <p className="text-sm text-muted-foreground/70">
-                        커스텀 라벨이 없습니다. 아래 버튼으로 key-value 를 추가하세요.
-                      </p>
-                    ) : (
-                      fields.labels.custom.map((pair, idx) => {
-                        const k = pair.key.trim();
-                        const isManaged = !!k && MANAGED_LABEL_KEYS.has(k);
-                        const isDup =
-                          !!k &&
-                          fields.labels.custom.filter((p) => p.key.trim() === k).length > 1;
-                        return (
-                          <div key={idx} className="flex flex-col gap-1">
-                            <div className="flex gap-2 items-center">
-                              <Input
-                                placeholder="Key (예: com.example.team)"
-                                value={pair.key}
-                                aria-invalid={isManaged || isDup}
-                                onChange={(e) =>
-                                  updateLabel({
-                                    custom: fields.labels.custom.map((p, i) =>
-                                      i === idx ? { ...p, key: e.target.value } : p,
-                                    ),
-                                  })
-                                }
-                                className="flex-1 h-10 text-sm font-mono"
-                              />
-                              <span className="text-muted-foreground/70 text-sm">=</span>
-                              <Input
-                                placeholder="Value"
-                                value={pair.value}
-                                onChange={(e) =>
-                                  updateLabel({
-                                    custom: fields.labels.custom.map((p, i) =>
-                                      i === idx ? { ...p, value: e.target.value } : p,
-                                    ),
-                                  })
-                                }
-                                className="flex-1 h-10 text-sm font-mono"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateLabel({
-                                    custom: fields.labels.custom.filter((_, i) => i !== idx),
-                                  })
-                                }
-                                className="p-1.5 rounded hover:bg-card text-destructive shrink-0"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                            {(isManaged || isDup) && (
-                              <p className="text-xs text-warning pl-0.5">
-                                {isManaged
-                                  ? '이 키는 위 입력 필드(Version/Authors/License/URL/Documentation/title)로 이미 관리됩니다. 커스텀에 같은 키를 넣으면 마지막 값으로 덮어써집니다.'
-                                  : '중복된 키입니다. 같은 키가 여러 개면 마지막 값만 적용됩니다.'}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="self-start"
-                      onClick={() =>
-                        updateLabel({ custom: [...fields.labels.custom, { key: '', value: '' }] })
-                      }
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      key-value 추가
-                    </Button>
-                  </div>
+                {/* 빈 상태 */}
+                {shownMeta.size === 0 && fields.labels.custom.length === 0 && (
+                  <p className="text-sm text-muted-foreground/70">
+                    추가된 메타데이터가 없습니다. 아래 버튼으로 항목을 추가하세요.
+                  </p>
                 )}
+
+                {/* 메타데이터 추가 드롭다운 */}
+                <div className="relative self-start">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddMeta((v) => !v)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    메타데이터 추가하기
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                  {showAddMeta && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowAddMeta(false)} />
+                      <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-lg border border-border bg-card shadow-lg py-1">
+                        {STANDARD_META.filter((m) => !shownMeta.has(m.key)).map((m) => (
+                          <button
+                            key={m.key}
+                            type="button"
+                            className="w-full flex items-center px-3.5 py-2 text-sm hover:bg-muted transition-colors text-left"
+                            onClick={() => addMeta(m.key)}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className="w-full flex items-center px-3.5 py-2 text-sm hover:bg-muted transition-colors text-left border-t border-border"
+                          onClick={addCustomLabel}
+                        >
+                          커스텀 라벨
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </section>
           </>
