@@ -694,6 +694,21 @@ export default function DockerfileEditorPage() {
     updateMarkers(newValue);
   };
 
+  // 탭 전환: 에디터에서 직접 수정한 content 를 입력 폼 필드에 반영한다(editor → form).
+  // 폼은 명령어 블록 기반이라 ENTRYPOINT/ARG/멀티스테이지 등 폼이 표현 못 하는 지시자는
+  // 폼으로 전환하는 순간 떨어져 나가므로(폼이 content 를 재생성), 그 점만 유의한다.
+  const switchToForm = () => {
+    if (mode === 'editor') {
+      const parsed = parseDockerfileContent(content);
+      // 커스텀 라벨이 없으면 빈 입력란 1개를 기본으로 둔다(폼 UX 일관성).
+      if (parsed.labels.custom.length === 0) {
+        parsed.labels.custom = [{ key: '', value: '' }];
+      }
+      setFields(parsed);
+    }
+    setMode('form');
+  };
+
   /* ── Instruction CRUD ── */
 
   const addInstruction = (type: InstructionType) => {
@@ -1068,7 +1083,7 @@ export default function DockerfileEditorPage() {
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 type="button"
-                onClick={() => setMode('form')}
+                onClick={switchToForm}
                 className={`px-5 py-2 text-sm font-medium transition-colors ${mode === 'form' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               >
                 입력 폼
