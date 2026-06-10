@@ -1,7 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import { k8sApi } from '@/api/k8s';
 import type { Dockerfile } from '@/types/dockerfile';
-import type { ImageBuild, ImageBuildCr, ImageMetadata, RunBuildInput } from '@/types/build';
+import type { ImageBuild, ImageBuildCr, RunBuildInput } from '@/types/build';
 
 const BASE = '/builds';
 
@@ -17,41 +17,30 @@ const OCI = 'org.opencontainers.image';
 const VENDOR = 'AIPub, TEN Inc';
 
 /**
- * 이미지에 baking 할 라벨 맵을 조립한다. (CR spec.imageLabels → 컨트롤러가 Kaniko --label 로 전개)
+ * 이미지에 baking 할 자동 라벨 맵을 조립한다. (CR spec.imageLabels → 컨트롤러가 Kaniko --label 로 전개)
  * - provenance: 어떤 Dockerfile/리비전/누가 만든 이미지인지 식별 (dockerizer.aipub.ten1010.io/*)
- * - OCI 표준(org.opencontainers.image.*): 대부분 Dockerfile DTO 에서 자동 채움, 일부는 사용자 입력으로 보강
+ * - OCI 표준(org.opencontainers.image.*): 빌드 시점에 결정되는 자동 값(생성시각/제목/리비전 등)
+ *
+ * 사용자 입력 라벨(version/authors/licenses/url/documentation/커스텀)은 여기서 다루지 않는다.
+ * 에디터에서 Dockerfile content 의 LABEL 지시자로 직접 들어가므로(에디터 페이지 buildLabelLines),
+ * Kaniko 가 Dockerfile 을 빌드하며 그대로 이미지에 반영한다.
  * 빈 값은 생략한다.
  */
-function buildImageLabels(df: Dockerfile, tag: string, meta?: ImageMetadata): Record<string, string> {
+function buildImageLabels(df: Dockerfile): Record<string, string> {
   const revision = String(df.latestRevisionId ?? 0);
   const labels: Record<string, string> = {
     // provenance (이미지 자체에 baking — CR 이 GC 돼도 이미지로 추적 가능)
     [LABEL_DOCKERFILE_ID]: String(df.id),
     [LABEL_REVISION_ID]: revision,
     [LABEL_USERNAME]: df.username,
-    // OCI 표준 — 자동
+    // OCI 표준 — 빌드 시점 자동 값
+    // (title=org.opencontainers.image.title 은 Dockerfile content 의 LABEL 로 들어가므로 여기서 제외)
     [`${OCI}.created`]: new Date().toISOString(),
-    [`${OCI}.title`]: df.name,
     [`${OCI}.revision`]: revision,
     [`${OCI}.vendor`]: VENDOR,
   };
   if (df.baseImage) labels[`${OCI}.base.name`] = df.baseImage;
   if (df.description?.trim()) labels[`${OCI}.description`] = df.description.trim();
-
-  // OCI 표준 — 사용자 입력 보강 (미입력 시 기본값/생략)
-  const authors = meta?.authors?.trim() || df.username;
-  if (authors) labels[`${OCI}.authors`] = authors;
-  const version = meta?.version?.trim() || tag;
-  if (version) labels[`${OCI}.version`] = version;
-  if (meta?.licenses?.trim()) labels[`${OCI}.licenses`] = meta.licenses.trim();
-  if (meta?.url?.trim()) labels[`${OCI}.url`] = meta.url.trim();
-  if (meta?.documentation?.trim()) labels[`${OCI}.documentation`] = meta.documentation.trim();
-
-  // 커스텀 라벨 (빈 key 무시, 사용자 입력 우선)
-  for (const { key, value } of meta?.customLabels ?? []) {
-    const k = key.trim();
-    if (k) labels[k] = value.trim();
-  }
   return labels;
 }
 
@@ -112,7 +101,7 @@ export const buildApi = {
       spec: {
         dockerfileContent: df.content,
         targetImage: `${input.targetImage}:${input.tag}`,
-        imageLabels: buildImageLabels(df, input.tag, input.metadata),
+        imageLabels: buildImageLabels(df),
         ...(input.pushSecretRef ? { pushSecretRef: input.pushSecretRef } : {}),
         ...(input.buildContextPvc ? { buildContextPvc: input.buildContextPvc } : {}),
         ...(input.buildContextSubPath ? { buildContextSubPath: input.buildContextSubPath } : {}),

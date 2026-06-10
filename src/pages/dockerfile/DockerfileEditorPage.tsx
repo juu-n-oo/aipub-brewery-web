@@ -19,7 +19,12 @@ import {
   Copy,
   History,
 } from 'lucide-react';
-import { useDockerfile, useCreateDockerfile, useUpdateDockerfile } from '@/hooks/useDockerfiles';
+import {
+  useDockerfile,
+  useDockerfileList,
+  useCreateDockerfile,
+  useUpdateDockerfile,
+} from '@/hooks/useDockerfiles';
 import { useRunBuild } from '@/hooks/useBuilds';
 import type { Dockerfile } from '@/types/dockerfile';
 import { useAuth } from '@/hooks/useAuthContext';
@@ -65,13 +70,34 @@ interface Instruction {
   envPairs?: EnvPair[];
 }
 
+/** 사용자가 입력하는 이미지 메타데이터. Dockerfile content 의 LABEL 지시자로 굽힌다(round-trip). */
+interface ImageLabelFields {
+  version: string;
+  authors: string;
+  licenses: string;
+  url: string;
+  documentation: string;
+  /** 임의 커스텀 라벨 (key=value). 빈 key 는 무시된다. */
+  custom: { key: string; value: string }[];
+}
+
 interface DockerfileFields {
   baseImage: string;
   instructions: Instruction[];
   workdir: string;
   exposePorts: string;
   cmd: string;
+  labels: ImageLabelFields;
 }
+
+const emptyLabels: ImageLabelFields = {
+  version: '',
+  authors: '',
+  licenses: '',
+  url: '',
+  documentation: '',
+  custom: [],
+};
 
 const defaultFields: DockerfileFields = {
   baseImage: '',
@@ -79,7 +105,80 @@ const defaultFields: DockerfileFields = {
   workdir: '/workspace',
   exposePorts: '',
   cmd: 'bash',
+  labels: { ...emptyLabels, custom: [] },
 };
+
+/* ── 이미지 메타데이터 ↔ OCI LABEL 매핑 ── */
+
+const OCI_PREFIX = 'org.opencontainers.image';
+const OCI_LABEL_KEYS = {
+  title: `${OCI_PREFIX}.title`,
+  version: `${OCI_PREFIX}.version`,
+  authors: `${OCI_PREFIX}.authors`,
+  licenses: `${OCI_PREFIX}.licenses`,
+  url: `${OCI_PREFIX}.url`,
+  documentation: `${OCI_PREFIX}.documentation`,
+} as const;
+
+/** LABEL 값 인용/이스케이프 ("..." 로 감싸고 \, " 를 이스케이프). */
+function quoteLabelValue(v: string): string {
+  return `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * ImageLabelFields(+ Dockerfile 이름) → `LABEL key="value"` 줄 목록 (빈 값 생략).
+ * title 은 Dockerfile 이름에서 자동 생성한다(별도 입력 필드 없음).
+ */
+function buildLabelLines(labels: ImageLabelFields, title: string): string[] {
+  const out: string[] = [];
+  if (title.trim()) out.push(`LABEL ${OCI_LABEL_KEYS.title}=${quoteLabelValue(title.trim())}`);
+  const known: [string, string][] = [
+    [OCI_LABEL_KEYS.version, labels.version],
+    [OCI_LABEL_KEYS.authors, labels.authors],
+    [OCI_LABEL_KEYS.licenses, labels.licenses],
+    [OCI_LABEL_KEYS.url, labels.url],
+    [OCI_LABEL_KEYS.documentation, labels.documentation],
+  ];
+  for (const [key, value] of known) {
+    if (value.trim()) out.push(`LABEL ${key}=${quoteLabelValue(value.trim())}`);
+  }
+  for (const { key, value } of labels.custom) {
+    const k = key.trim();
+    if (k) out.push(`LABEL ${k}=${quoteLabelValue(value.trim())}`);
+  }
+  return out;
+}
+
+/** `LABEL a="x y" b=z` 한 줄을 key-value 쌍으로 파싱 (인용/이스케이프 처리). */
+function parseLabelInstruction(rest: string): { key: string; value: string }[] {
+  const pairs: { key: string; value: string }[] = [];
+  let i = 0;
+  while (i < rest.length) {
+    while (i < rest.length && /\s/.test(rest[i])) i++;
+    if (i >= rest.length) break;
+    let key = '';
+    while (i < rest.length && rest[i] !== '=' && !/\s/.test(rest[i])) key += rest[i++];
+    if (rest[i] !== '=') break; // 잘못된 형식
+    i++; // '=' 건너뜀
+    let value = '';
+    if (rest[i] === '"') {
+      i++;
+      while (i < rest.length && rest[i] !== '"') {
+        if (rest[i] === '\\' && i + 1 < rest.length) {
+          i++;
+          value += rest[i++];
+        } else {
+          value += rest[i++];
+        }
+      }
+      i++; // 닫는 따옴표
+    } else {
+      while (i < rest.length && !/\s/.test(rest[i])) value += rest[i++];
+    }
+    if (key) pairs.push({ key, value });
+  }
+  return pairs;
+}
 
 let nextInstrId = 1;
 function newId() {
@@ -106,6 +205,7 @@ function parseDockerfileContent(content: string): DockerfileFields {
   let workdir = '';
   const exposePorts: string[] = [];
   let cmd = '';
+  const labels: ImageLabelFields = { ...emptyLabels, custom: [] };
 
   let pendingVolumeName: string | null = null;
 
@@ -192,6 +292,35 @@ function parseDockerfileContent(content: string): DockerfileFields {
       continue;
     }
 
+    if (upper.startsWith('LABEL ')) {
+      const rest = trimmed.substring(6).trim();
+      for (const { key, value } of parseLabelInstruction(rest)) {
+        switch (key) {
+          case OCI_LABEL_KEYS.title:
+            // title 은 Dockerfile 이름에서 자동 생성 → 필드에 저장하지 않음 (재생성 시 중복 방지)
+            break;
+          case OCI_LABEL_KEYS.version:
+            labels.version = value;
+            break;
+          case OCI_LABEL_KEYS.authors:
+            labels.authors = value;
+            break;
+          case OCI_LABEL_KEYS.licenses:
+            labels.licenses = value;
+            break;
+          case OCI_LABEL_KEYS.url:
+            labels.url = value;
+            break;
+          case OCI_LABEL_KEYS.documentation:
+            labels.documentation = value;
+            break;
+          default:
+            labels.custom.push({ key, value });
+        }
+      }
+      continue;
+    }
+
     if (upper.startsWith('WORKDIR ')) {
       workdir = trimmed.substring(8).trim();
       continue;
@@ -220,7 +349,7 @@ function parseDockerfileContent(content: string): DockerfileFields {
       continue;
     }
 
-    // ENTRYPOINT, LABEL 등 지원 안 되는 지시자는 무시 (editor 모드에서 유지됨)
+    // ENTRYPOINT 등 지원 안 되는 지시자는 무시 (editor 모드에서 유지됨)
     pendingVolumeName = null;
   }
 
@@ -230,16 +359,24 @@ function parseDockerfileContent(content: string): DockerfileFields {
     workdir,
     exposePorts: exposePorts.join(' '),
     cmd,
+    labels,
   };
 }
 
 /* ── Generate Dockerfile ── */
 
-function generateDockerfileContent(fields: DockerfileFields): string {
+function generateDockerfileContent(fields: DockerfileFields, imageTitle = ''): string {
   const lines: string[] = [];
 
   lines.push(`FROM ${fields.baseImage || '<base-image>'}`);
   lines.push('');
+
+  // 이미지 메타데이터 LABEL (FROM 바로 아래, 최상단). title 은 Dockerfile 이름에서 자동. 빈 값은 생략.
+  const labelLines = buildLabelLines(fields.labels, imageTitle);
+  if (labelLines.length > 0) {
+    labelLines.forEach((l) => lines.push(l));
+    lines.push('');
+  }
 
   for (const instr of fields.instructions) {
     switch (instr.type) {
@@ -361,7 +498,7 @@ export default function DockerfileEditorPage() {
   const { id: idParam } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { projects } = useAuth();
+  const { projects, username, isAdmin } = useAuth();
   const { theme } = useTheme();
   const { toast } = useToast();
   const monacoTheme = theme === 'dark' ? 'vs-dark' : 'vs-light';
@@ -377,6 +514,12 @@ export default function DockerfileEditorPage() {
   const runBuildMutation = useRunBuild();
   const { data: volumeList } = useVolumes(selectedProjectId);
   const { data: projectData } = useProject(selectedProjectId);
+  // 이름 중복 사전검증용: 본인 소유 Dockerfile 목록 (멤버=바인딩 프로젝트 본인분, 관리자=owner 필터)
+  const { data: dfList } = useDockerfileList({
+    isAdmin,
+    projects: projects.map((p) => p.name),
+    owner: username,
+  });
 
   const volumes = volumeList?.items ?? [];
   const imageHubs = projectData?.status?.allBoundImageHubs ?? [];
@@ -392,13 +535,7 @@ export default function DockerfileEditorPage() {
   const [selectedImageHub, setSelectedImageHub] = useState('');
   const [buildContextVolume, setBuildContextVolume] = useState('');
   const [buildContextSubPath, setBuildContextSubPath] = useState('');
-  // 이미지 메타데이터(OCI 라벨) 입력. 빈 값은 build.ts 가 기본값으로 채우거나 생략한다.
-  const [imgVersion, setImgVersion] = useState('');
-  const [imgAuthors, setImgAuthors] = useState('');
-  const [imgLicenses, setImgLicenses] = useState('');
-  const [imgUrl, setImgUrl] = useState('');
-  const [imgDocumentation, setImgDocumentation] = useState('');
-  const [customLabels, setCustomLabels] = useState<{ key: string; value: string }[]>([]);
+  // 이미지 메타데이터(OCI 라벨)는 fields.labels 에 보관 → Dockerfile content 의 LABEL 로 생성/파싱된다.
   const [metaTab, setMetaTab] = useState<'advanced' | 'custom'>('advanced');
   // "생성 후 빌드" 의도 기억: true 이면 빌드 다이얼로그 확인 시 생성→빌드를 연속 수행한다.
   const [buildAfterCreate, setBuildAfterCreate] = useState(false);
@@ -455,6 +592,24 @@ export default function DockerfileEditorPage() {
     if (!isEdit) didInitRef.current = true;
   }, [isEdit]);
 
+  // CREATE 모드: 이미지 라벨 기본값 — Authors=로그인 사용자, Version=latest.
+  // (title 은 Dockerfile 이름에서 자동 생성) username 로드 후 1회만, 빈 값일 때만 채운다.
+  useEffect(() => {
+    if (isEdit || !username) return;
+    setFields((p) =>
+      p.labels.authors
+        ? p
+        : {
+            ...p,
+            labels: {
+              ...p.labels,
+              authors: username,
+              version: p.labels.version || 'latest',
+            },
+          },
+    );
+  }, [isEdit, username]);
+
   // imageHub 목록이 로드되면 첫 번째를 기본 선택
   useEffect(() => {
     if (imageHubs.length > 0 && !selectedImageHub) {
@@ -474,11 +629,11 @@ export default function DockerfileEditorPage() {
     // 초기 하이드레이션 전에는 동기화하지 않는다. (EDIT 시 기존 content 가 덮어써지는 것을 방지)
     if (!didInitRef.current) return;
     if (mode === 'form') {
-      const generated = generateDockerfileContent(fields);
+      const generated = generateDockerfileContent(fields, nameValue || existing?.name || '');
       setContent(generated);
       updateMarkers(generated);
     }
-  }, [fields, mode]);
+  }, [fields, mode, nameValue, existing?.name]);
 
   const updateMarkers = useCallback((value: string) => {
     const newWarnings = validateDockerfile(value);
@@ -552,6 +707,10 @@ export default function DockerfileEditorPage() {
     });
   };
 
+  // 이미지 메타데이터(LABEL) 패치
+  const updateLabel = (patch: Partial<ImageLabelFields>) =>
+    setFields((p) => ({ ...p, labels: { ...p.labels, ...patch } }));
+
   /* ── Submit ── */
 
   // 저장 시 전송할 baseImage 계산: form 모드는 입력 필드, editor 모드는 content 의 FROM 파싱.
@@ -579,6 +738,7 @@ export default function DockerfileEditorPage() {
 
   const onSubmit = (data: FormData) => {
     if (!validateBaseImage()) return;
+    if (duplicateName) return; // 인라인 에러로 안내됨
     if (isEdit && dockerfileId !== undefined) {
       // Edit mode: show commit message dialog
       setPendingSaveData(data);
@@ -594,7 +754,15 @@ export default function DockerfileEditorPage() {
           baseImage,
           project: selectedProjectId,
         },
-        { onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`) },
+        {
+          onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`),
+          onError: (e) =>
+            toast({
+              title: 'Dockerfile 생성 실패',
+              description: (e as Error).message,
+              variant: 'destructive',
+            }),
+        },
       );
     }
   };
@@ -619,6 +787,12 @@ export default function DockerfileEditorPage() {
           setPendingSaveData(null);
           navigate(`/dockerfiles?projectId=${selectedProjectId}`);
         },
+        onError: (e) =>
+          toast({
+            title: '저장 실패',
+            description: (e as Error).message,
+            variant: 'destructive',
+          }),
       },
     );
   };
@@ -629,19 +803,12 @@ export default function DockerfileEditorPage() {
 
     // 빌드 옵션(타깃/태그/컨텍스트)은 동일, 대상 Dockerfile 만 다르다.
     // 프론트가 CR 을 직접 만들므로 저장된 Dockerfile 의 content/baseImage 등을 그대로 싣는다.
+    // 이미지 메타데이터는 Dockerfile content 의 LABEL 로 이미 들어가 있으므로 별도 전달 불필요.
     const buildOptions = {
       targetImage: targetImageRef,
       tag: targetTag,
       ...(pvcName ? { buildContextPvc: pvcName } : {}),
       ...(buildContextSubPath ? { buildContextSubPath } : {}),
-      metadata: {
-        version: imgVersion,
-        authors: imgAuthors,
-        licenses: imgLicenses,
-        url: imgUrl,
-        documentation: imgDocumentation,
-        customLabels,
-      },
     };
 
     const startBuild = (df: Dockerfile) =>
@@ -696,6 +863,15 @@ export default function DockerfileEditorPage() {
             },
           });
         },
+        onError: (e) => {
+          setShowBuildDialog(false);
+          setBuildAfterCreate(false);
+          toast({
+            title: 'Dockerfile 생성 실패',
+            description: (e as Error).message,
+            variant: 'destructive',
+          });
+        },
       },
     );
   };
@@ -725,6 +901,19 @@ export default function DockerfileEditorPage() {
   // 빌드 대상이 베이스 이미지와 완전히 동일하면 기존 이미지를 덮어쓰게 된다.
   const overwritesBase =
     !!targetImageFull && normalizeImageRef(targetImageFull) === normalizeImageRef(resolveBaseImage());
+
+  // 이름 중복 검사 (프론트 사전검증; 백엔드도 동일 검증 수행 — 권위).
+  // 범위: 같은 (project, 본인) 안의 동일 이름. 수정 중에는 자기 자신을 제외한다.
+  const trimmedName = (nameValue ?? '').trim();
+  const duplicateName =
+    !!trimmedName &&
+    (dfList ?? []).some(
+      (d) =>
+        d.project === selectedProjectId &&
+        d.username === username &&
+        d.name === trimmedName &&
+        d.id !== dockerfileId,
+    );
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
@@ -792,8 +981,19 @@ export default function DockerfileEditorPage() {
               <Label htmlFor="name">
                 Dockerfile 이름 <span className="text-destructive">*</span>
               </Label>
-              <Input id="name" placeholder="예: pytorch-cuda-base" {...register('name')} />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              <Input
+                id="name"
+                placeholder="예: pytorch-cuda-base"
+                aria-invalid={!!errors.name || duplicateName}
+                {...register('name')}
+              />
+              {errors.name ? (
+                <p className="text-sm text-destructive">{errors.name.message}</p>
+              ) : duplicateName ? (
+                <p className="text-sm text-destructive">
+                  이미 같은 이름의 Dockerfile 이 있습니다. 다른 이름을 사용하세요.
+                </p>
+              ) : null}
             </div>
             <div className="flex flex-col gap-1.5 max-w-2xl">
               <Label htmlFor="description">설명</Label>
@@ -1036,6 +1236,151 @@ export default function DockerfileEditorPage() {
           )}
         </section>
 
+        {mode === 'form' && (
+          <>
+            <hr className="border-border" />
+
+            {/* 이미지 메타데이터 (OCI LABEL) — Dockerfile content 의 LABEL 로 반영됨 */}
+            <section>
+              <h2 className="text-lg font-bold text-foreground mb-4">이미지 메타데이터 (선택)</h2>
+              <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 max-w-3xl">
+                {/* 기본 필드 (항상 표시) */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Version</Label>
+                    <Input
+                      value={fields.labels.version}
+                      onChange={(e) => updateLabel({ version: e.target.value })}
+                      placeholder="예: 1.0.0"
+                      className="h-11 text-sm"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Authors</Label>
+                    <Input
+                      value={fields.labels.authors}
+                      onChange={(e) => updateLabel({ authors: e.target.value })}
+                      placeholder={existing?.username || '예: joonwoo'}
+                      className="h-11 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* 탭: 추가 설정 / 커스텀 라벨 */}
+                <div className="flex rounded-lg border border-border overflow-hidden self-start">
+                  <button
+                    type="button"
+                    onClick={() => setMetaTab('advanced')}
+                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'advanced' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                  >
+                    추가 설정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMetaTab('custom')}
+                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'custom' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                  >
+                    커스텀 라벨
+                  </button>
+                </div>
+
+                {metaTab === 'advanced' ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label>License</Label>
+                      <Input
+                        value={fields.labels.licenses}
+                        onChange={(e) => updateLabel({ licenses: e.target.value })}
+                        placeholder="예: Apache-2.0, MIT (SPDX expression)"
+                        className="h-11 text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>URL</Label>
+                      <Input
+                        value={fields.labels.url}
+                        onChange={(e) => updateLabel({ url: e.target.value })}
+                        placeholder="예: https://github.com/org/repo"
+                        className="h-11 text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Documentation</Label>
+                      <Input
+                        value={fields.labels.documentation}
+                        onChange={(e) => updateLabel({ documentation: e.target.value })}
+                        placeholder="예: https://docs.example.com"
+                        className="h-11 text-sm"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {fields.labels.custom.length === 0 ? (
+                      <p className="text-sm text-muted-foreground/70">
+                        커스텀 라벨이 없습니다. 아래 버튼으로 key-value 를 추가하세요.
+                      </p>
+                    ) : (
+                      fields.labels.custom.map((pair, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <Input
+                            placeholder="Key (예: com.example.team)"
+                            value={pair.key}
+                            onChange={(e) =>
+                              updateLabel({
+                                custom: fields.labels.custom.map((p, i) =>
+                                  i === idx ? { ...p, key: e.target.value } : p,
+                                ),
+                              })
+                            }
+                            className="flex-1 h-10 text-sm font-mono"
+                          />
+                          <span className="text-muted-foreground/70 text-sm">=</span>
+                          <Input
+                            placeholder="Value"
+                            value={pair.value}
+                            onChange={(e) =>
+                              updateLabel({
+                                custom: fields.labels.custom.map((p, i) =>
+                                  i === idx ? { ...p, value: e.target.value } : p,
+                                ),
+                              })
+                            }
+                            className="flex-1 h-10 text-sm font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateLabel({
+                                custom: fields.labels.custom.filter((_, i) => i !== idx),
+                              })
+                            }
+                            className="p-1.5 rounded hover:bg-card text-destructive shrink-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="self-start"
+                      onClick={() =>
+                        updateLabel({ custom: [...fields.labels.custom, { key: '', value: '' }] })
+                      }
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      key-value 추가
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
         {/* 하단 액션 바 */}
         <div className="flex justify-end gap-3 pt-4 border-t border-border">
           <Button
@@ -1069,11 +1414,11 @@ export default function DockerfileEditorPage() {
             <Button
               type="button"
               variant="outline"
-              disabled={isSaving || warnings.length > 0}
+              disabled={isSaving || warnings.length > 0 || duplicateName}
               onClick={async () => {
-                // onSubmit 의 form-mode 가드와 동일한 검증: 이름 + 비어있지 않은 baseImage.
+                // onSubmit 의 form-mode 가드와 동일한 검증: 이름 + 비어있지 않은 baseImage + 이름 중복.
                 const nameValid = await trigger('name');
-                if (!nameValid || !validateBaseImage()) return;
+                if (!nameValid || !validateBaseImage() || duplicateName) return;
                 // COPY가 있고 볼륨 미선택 시 자동 감지
                 if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
                   const volInstr = fields.instructions.find(
@@ -1088,7 +1433,7 @@ export default function DockerfileEditorPage() {
               <Play className="h-4 w-4" /> 생성 후 빌드
             </Button>
           )}
-          <Button type="submit" disabled={isSaving}>
+          <Button type="submit" disabled={isSaving || duplicateName}>
             {isEdit ? t('common.save') : 'Create'}
           </Button>
         </div>
@@ -1211,145 +1556,6 @@ export default function DockerfileEditorPage() {
                 </div>
               </div>
             )}
-
-            {/* 이미지 메타데이터 (OCI 라벨) */}
-            <hr className="border-border" />
-            <div className="flex flex-col gap-3">
-              <div>
-                <Label>이미지 메타데이터 (선택)</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  빌드된 이미지에 OCI 표준 라벨로 baking 됩니다. 작성자·리비전·베이스 이미지 등은
-                  자동으로 기록됩니다.
-                </p>
-              </div>
-
-              {/* 기본 필드 (항상 표시) */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Version</Label>
-                  <Input
-                    value={imgVersion}
-                    onChange={(e) => setImgVersion(e.target.value)}
-                    placeholder={`미입력 시 태그(${targetTag}) 사용`}
-                    className="h-11 text-sm"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Authors</Label>
-                  <Input
-                    value={imgAuthors}
-                    onChange={(e) => setImgAuthors(e.target.value)}
-                    placeholder={
-                      existing?.username
-                        ? `미입력 시 ${existing.username}`
-                        : '미입력 시 Dockerfile 소유자'
-                    }
-                    className="h-11 text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* 탭: 추가 설정 / 커스텀 라벨 */}
-              <div className="flex rounded-lg border border-border overflow-hidden self-start">
-                <button
-                  type="button"
-                  onClick={() => setMetaTab('advanced')}
-                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'advanced' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
-                >
-                  추가 설정
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMetaTab('custom')}
-                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${metaTab === 'custom' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
-                >
-                  커스텀 라벨
-                </button>
-              </div>
-
-              {metaTab === 'advanced' ? (
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <Label>License</Label>
-                    <Input
-                      value={imgLicenses}
-                      onChange={(e) => setImgLicenses(e.target.value)}
-                      placeholder="예: Apache-2.0, MIT (SPDX expression)"
-                      className="h-11 text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>URL</Label>
-                    <Input
-                      value={imgUrl}
-                      onChange={(e) => setImgUrl(e.target.value)}
-                      placeholder="예: https://github.com/org/repo"
-                      className="h-11 text-sm"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Documentation</Label>
-                    <Input
-                      value={imgDocumentation}
-                      onChange={(e) => setImgDocumentation(e.target.value)}
-                      placeholder="예: https://docs.example.com"
-                      className="h-11 text-sm"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {customLabels.length === 0 ? (
-                    <p className="text-sm text-muted-foreground/70">
-                      커스텀 라벨이 없습니다. 아래 버튼으로 key-value 를 추가하세요.
-                    </p>
-                  ) : (
-                    customLabels.map((pair, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <Input
-                          placeholder="Key (예: com.example.team)"
-                          value={pair.key}
-                          onChange={(e) =>
-                            setCustomLabels((prev) =>
-                              prev.map((p, i) => (i === idx ? { ...p, key: e.target.value } : p)),
-                            )
-                          }
-                          className="flex-1 h-10 text-sm font-mono"
-                        />
-                        <span className="text-muted-foreground/70 text-sm">=</span>
-                        <Input
-                          placeholder="Value"
-                          value={pair.value}
-                          onChange={(e) =>
-                            setCustomLabels((prev) =>
-                              prev.map((p, i) => (i === idx ? { ...p, value: e.target.value } : p)),
-                            )
-                          }
-                          className="flex-1 h-10 text-sm font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setCustomLabels((prev) => prev.filter((_, i) => i !== idx))}
-                          className="p-1.5 rounded hover:bg-card text-destructive shrink-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="self-start"
-                    onClick={() => setCustomLabels((prev) => [...prev, { key: '', value: '' }])}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    key-value 추가
-                  </Button>
-                </div>
-              )}
-            </div>
 
             {/* 빌드 컨텍스트 (COPY 사용 시) */}
             {hasCopyInstruction && (

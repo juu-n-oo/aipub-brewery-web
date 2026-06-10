@@ -29,8 +29,11 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(error.message || `Request failed: ${response.status}`);
+    // 백엔드는 RFC 7807 ProblemDetail(`detail` 필드)을 쓰므로 message → detail 순으로 메시지를 끌어온다.
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.message || error.detail || response.statusText || `Request failed: ${response.status}`,
+    );
   }
 
   if (response.status === 204) {
