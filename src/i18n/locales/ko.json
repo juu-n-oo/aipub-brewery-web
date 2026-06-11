@@ -194,7 +194,12 @@
     "tag": "Tag",
     "tagEmpty": "태그 없음",
     "selectRepository": "Repository를 선택하세요",
-    "select": "선택"
+    "select": "선택",
+    "catalog": "Image Catalog",
+    "catalogEmpty": "카탈로그 이미지 없음",
+    "image": "이미지",
+    "selectImage": "이미지를 선택하세요",
+    "tagCount": "태그 {{count}}개"
   },
   "nav": {
     "dockerfiles": "Dockerfile",

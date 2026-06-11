@@ -13,3 +13,10 @@ export const buildKeys = {
   logs: (namespace: string, name: string) =>
     [...buildKeys.all, 'detail', namespace, name, 'logs'] as const,
 };
+
+/** Image Catalog 쿼리 키. 전역 카탈로그라 프로젝트/네임스페이스 차원이 없다. */
+export const catalogKeys = {
+  all: ['catalog'] as const,
+  list: () => [...catalogKeys.all, 'list'] as const,
+  detail: (name: string) => [...catalogKeys.all, 'detail', name] as const,
+};

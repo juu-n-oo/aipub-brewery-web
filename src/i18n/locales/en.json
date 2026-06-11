@@ -194,7 +194,12 @@
     "tag": "Tag",
     "tagEmpty": "No tags",
     "selectRepository": "Select a Repository",
-    "select": "Select"
+    "select": "Select",
+    "catalog": "Image Catalog",
+    "catalogEmpty": "No catalog images",
+    "image": "Image",
+    "selectImage": "Select an image",
+    "tagCount": "{{count}} tags"
   },
   "nav": {
     "dockerfiles": "Dockerfiles",

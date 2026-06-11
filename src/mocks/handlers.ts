@@ -663,6 +663,99 @@ export const handlers = [
       },
     });
   }),
+
+  // ── Image Catalog (전역 읽기 전용 큐레이션 base 이미지) ──
+
+  http.get('/image-catalog/api/images', async () => {
+    await delay(200);
+    // 목록 응답: versions 비움, latest* 비움.
+    return HttpResponse.json(
+      mockCatalog.map((c) => ({
+        ...c,
+        versions: [],
+        latestPullReference: null,
+        latestTag: '-',
+      })),
+    );
+  }),
+
+  http.get('/image-catalog/api/images/:name', async ({ params }) => {
+    await delay(200);
+    const img = mockCatalog.find((c) => c.name === params.name);
+    if (!img) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json(img);
+  }),
+];
+
+const CATALOG_PREFIX = 'aipub-harbor.cluster10.idc1.ten1010.io/base-catalog';
+
+const mockCatalog = [
+  {
+    name: 'nginx',
+    displayName: 'NGINX',
+    fullName: 'base-catalog/nginx',
+    category: 'Application',
+    descriptionHtml:
+      '<p>고성능 HTTP 서버이자 리버스 프록시, 로드 밸런서입니다.</p>\n<h4>주요 특징</h4>\n<ul>\n  <li>이벤트 기반 비동기 아키텍처로 높은 동시성 처리</li>\n  <li>리버스 프록시 · 로드 밸런싱 · 캐싱</li>\n  <li>HTTP/2, gRPC, WebSocket 프록시 지원</li>\n</ul>\n',
+    logoText: 'NG',
+    registryHost: 'aipub-harbor.cluster10.idc1.ten1010.io',
+    pullPrefix: CATALOG_PREFIX,
+    latestTag: 'latest',
+    latestPullReference: `${CATALOG_PREFIX}/nginx:latest`,
+    tagCount: 1,
+    pullCount: 2,
+    updatedDate: '2026-06-09',
+    versions: [
+      {
+        tag: 'latest',
+        digest: 'sha256:632900a6bb6d5ef719cbf2222175594f07eb18d90c72be995086c2a94adf66f2',
+        shortDigest: 'sha256:632900a6bb6d',
+        pullReference: `${CATALOG_PREFIX}/nginx:latest`,
+        os: 'linux',
+        arch: 'arm64',
+        sizeHuman: '59.7 MB',
+        pushedDate: '2026-06-09',
+      },
+    ],
+  },
+  {
+    name: 'pytorch',
+    displayName: 'PyTorch',
+    fullName: 'base-catalog/pytorch',
+    category: 'Deep Learning',
+    descriptionHtml:
+      '<p>오픈소스 딥러닝 프레임워크. 동적 계산 그래프와 풍부한 생태계로 연구·프로덕션 양쪽에서 널리 쓰입니다.</p>\n<h4>주요 특징</h4>\n<ul>\n  <li>동적 계산 그래프(define-by-run)</li>\n  <li>CUDA 기반 GPU 가속</li>\n  <li>TorchScript · torch.compile 로 추론 최적화</li>\n</ul>\n',
+    logoText: 'PT',
+    registryHost: 'aipub-harbor.cluster10.idc1.ten1010.io',
+    pullPrefix: CATALOG_PREFIX,
+    latestTag: '2.3.0-cuda12.1',
+    latestPullReference: `${CATALOG_PREFIX}/pytorch:2.3.0-cuda12.1`,
+    tagCount: 2,
+    pullCount: 4,
+    updatedDate: '2026-06-09',
+    versions: [
+      {
+        tag: '2.3.0-cuda12.1',
+        digest: 'sha256:aa11bb22cc33dd44ee55ff66aa11bb22cc33dd44ee55ff66aa11bb22cc33dd44',
+        shortDigest: 'sha256:aa11bb22cc33',
+        pullReference: `${CATALOG_PREFIX}/pytorch:2.3.0-cuda12.1`,
+        os: 'linux',
+        arch: 'amd64',
+        sizeHuman: '6.8 GB',
+        pushedDate: '2026-06-09',
+      },
+      {
+        tag: '2.2.0-cpu',
+        digest: 'sha256:bb22cc33dd44ee55ff66aa11bb22cc33dd44ee55ff66aa11bb22cc33dd44ee55',
+        shortDigest: 'sha256:bb22cc33dd44',
+        pullReference: `${CATALOG_PREFIX}/pytorch:2.2.0-cpu`,
+        os: 'linux',
+        arch: 'amd64',
+        sizeHuman: '1.9 GB',
+        pushedDate: '2026-06-08',
+      },
+    ],
+  },
 ];
 
 /** ImageBuild DTO → k8s ImageBuild CR (k8sproxy 조회 응답 형태). buildApi 의 mapCrToImageBuild 역변환. */

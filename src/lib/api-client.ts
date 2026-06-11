@@ -3,6 +3,9 @@ import { API_BASE, API_BASE_URL } from '@/lib/env';
 /** 백엔드 k8sproxy 베이스 — CR 호출은 이 prefix 로 라우팅된다. */
 const K8S_PROXY_BASE = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
 
+/** Image Catalog 베이스 — 같은 aipub 도메인의 별도 서비스(`/image-catalog/api`). */
+const CATALOG_BASE = `${API_BASE_URL}/image-catalog/api`;
+
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
   responseType?: 'json' | 'text';
@@ -81,4 +84,13 @@ export const k8sClient = {
       body: JSON.stringify(body),
       baseUrl: K8S_PROXY_BASE,
     }),
+};
+
+/**
+ * Image Catalog 클라이언트. apiClient 와 동일한 fetch/에러/401 처리를 공유하되 베이스 URL 만
+ * `/image-catalog/api` 로 바꾼다(같은 도메인 쿠키 인증, 전역 읽기 전용 카탈로그).
+ */
+export const catalogClient = {
+  get: <T>(endpoint: string, options?: RequestOptions) =>
+    request<T>(endpoint, { ...options, method: 'GET', baseUrl: CATALOG_BASE }),
 };
