@@ -27,6 +27,7 @@
   "build": {
     "title": "Image Build",
     "run": "Run Build",
+    "retry": "Rebuild",
     "targetImage": "Target Image",
     "tag": "Tag",
     "tagPlaceholder": "e.g. v1.0.0",

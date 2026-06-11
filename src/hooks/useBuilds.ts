@@ -123,3 +123,16 @@ export function useRunBuild() {
     },
   });
 }
+
+/** 실패한 빌드의 재시도 — 기존 CR 을 복제해 새 빌드를 생성한다. */
+export function useRebuild() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ namespace, name }: { namespace: string; name: string }) =>
+      buildApi.rebuild(namespace, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+}

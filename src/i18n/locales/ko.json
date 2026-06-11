@@ -27,6 +27,7 @@
   "build": {
     "title": "이미지 빌드",
     "run": "빌드 실행",
+    "retry": "다시 빌드",
     "targetImage": "대상 이미지",
     "tag": "태그",
     "tagPlaceholder": "예: v1.0.0",

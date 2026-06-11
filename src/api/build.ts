@@ -11,6 +11,7 @@ const IMAGEBUILD_KIND = 'ImageBuild';
 const LABEL_DOCKERFILE_ID = 'dockerizer.aipub.ten1010.io/dockerfile-id';
 const LABEL_REVISION_ID = 'dockerizer.aipub.ten1010.io/dockerfile-revision-id';
 const LABEL_USERNAME = 'dockerizer.aipub.ten1010.io/username';
+const LABEL_REBUILD_OF = 'dockerizer.aipub.ten1010.io/rebuild-of';
 const ANNOTATION_BASE_IMAGE = 'dockerizer.aipub.ten1010.io/base-image';
 
 const OCI = 'org.opencontainers.image';
@@ -109,6 +110,39 @@ export const buildApi = {
       },
     };
     const created = await k8sApi.createImageBuild(df.project, cr);
+    return mapCrToImageBuild(created);
+  },
+
+  /**
+   * 재빌드: 기존 ImageBuild CR 의 spec/labels/annotations 를 그대로 복제해 새 CR 을 생성한다(백엔드 우회).
+   * 실패한 빌드의 정확한 재시도이므로 spec(dockerfileContent/targetImage/buildTimeoutSeconds 등)은
+   * CR 에 freeze 된 값을 재사용한다. 새 CR 이름은 generateName 으로 부여되며, 원본 추적을 위해
+   * rebuild-of 라벨을 단다. imageLabels 의 created(빌드 시점)만 현재 시각으로 갱신한다.
+   * (status 는 복제하지 않으므로 새 CR 은 Pending 부터 자연 진행 → 컨트롤러 변경 불필요)
+   */
+  rebuild: async (namespace: string, name: string): Promise<ImageBuild> => {
+    const src = await k8sApi.getImageBuild(namespace, name);
+    const srcImageLabels = src.spec.imageLabels as Record<string, string> | undefined;
+    const cr = {
+      apiVersion: IMAGEBUILD_API_VERSION,
+      kind: IMAGEBUILD_KIND,
+      metadata: {
+        generateName: 'imagebuild-',
+        namespace,
+        labels: {
+          ...(src.metadata.labels ?? {}),
+          [LABEL_REBUILD_OF]: name,
+        },
+        annotations: { ...(src.metadata.annotations ?? {}) },
+      },
+      spec: {
+        ...src.spec,
+        ...(srcImageLabels
+          ? { imageLabels: { ...srcImageLabels, [`${OCI}.created`]: new Date().toISOString() } }
+          : {}),
+      },
+    };
+    const created = await k8sApi.createImageBuild(namespace, cr);
     return mapCrToImageBuild(created);
   },
 

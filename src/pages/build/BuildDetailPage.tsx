@@ -12,8 +12,9 @@ import {
   Circle,
   FileCode2,
   AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
-import { useBuild, useBuildLogStream, useBuildLogs } from '@/hooks/useBuilds';
+import { useBuild, useBuildLogStream, useBuildLogs, useRebuild } from '@/hooks/useBuilds';
 import { Button } from '@/components/ui/Button';
 import { Badge, type BadgeProps } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -78,6 +79,7 @@ export default function BuildDetailPage() {
     text: streamText,
   } = useBuildLogStream(namespace, name, isActive ?? false);
   const { data: staticLogs, error: logsError } = useBuildLogs(namespace, name);
+  const rebuildMutation = useRebuild();
 
   const logText = streamText || staticLogs || '';
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -123,6 +125,21 @@ export default function BuildDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {build.phase === 'Failed' && (
+            <Button
+              variant="outline"
+              disabled={rebuildMutation.isPending}
+              onClick={() =>
+                rebuildMutation.mutate(
+                  { namespace, name },
+                  { onSuccess: (nb) => navigate(`/builds/${nb.namespace}/${nb.name}`) },
+                )
+              }
+            >
+              <RotateCcw className={`h-4 w-4 ${rebuildMutation.isPending ? 'animate-spin' : ''}`} />{' '}
+              {t('build.retry')}
+            </Button>
+          )}
           {build.dockerfileId > 0 && (
             <Button
               variant="outline"
