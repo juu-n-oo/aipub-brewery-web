@@ -1,14 +1,19 @@
-const API_BASE = `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1alpha1`;
+import { API_BASE, API_BASE_URL } from '@/lib/env';
+
+/** 백엔드 k8sproxy 베이스 — CR 호출은 이 prefix 로 라우팅된다. */
+const K8S_PROXY_BASE = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
   responseType?: 'json' | 'text';
+  /** 요청 베이스 URL. 미지정 시 백엔드 API(`/api/v1alpha1`). */
+  baseUrl?: string;
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { params, responseType = 'json', ...init } = options;
+  const { params, responseType = 'json', baseUrl = API_BASE, ...init } = options;
 
-  let url = `${API_BASE}${endpoint}`;
+  let url = `${baseUrl}${endpoint}`;
   if (params) {
     const searchParams = new URLSearchParams(params);
     url += `?${searchParams.toString()}`;
@@ -59,4 +64,21 @@ export const apiClient = {
 
   delete: <T>(endpoint: string, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'DELETE' }),
+};
+
+/**
+ * k8sproxy(백엔드 경유 k8s API) 클라이언트. apiClient 와 동일한 fetch/에러/401 처리를 공유하되
+ * 베이스 URL 만 k8sproxy 로 바꾼다. (이전엔 k8s.ts 가 별도 fetch 래퍼 k8sRequest 를 중복 구현했다.)
+ */
+export const k8sClient = {
+  get: <T>(endpoint: string, options?: RequestOptions) =>
+    request<T>(endpoint, { ...options, method: 'GET', baseUrl: K8S_PROXY_BASE }),
+
+  post: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
+    request<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      body: JSON.stringify(body),
+      baseUrl: K8S_PROXY_BASE,
+    }),
 };

@@ -1,49 +1,18 @@
 import { apiClient } from '@/lib/api-client';
 import { k8sApi } from '@/api/k8s';
-import type { Dockerfile } from '@/types/dockerfile';
+import {
+  makeImageBuildCr,
+  buildImageLabels,
+  withRefreshedCreated,
+  LABEL_DOCKERFILE_ID,
+  LABEL_REVISION_ID,
+  LABEL_USERNAME,
+  LABEL_REBUILD_OF,
+  ANNOTATION_BASE_IMAGE,
+} from '@/lib/image-build-cr';
 import type { ImageBuild, ImageBuildCr, RunBuildInput } from '@/types/build';
 
 const BASE = '/builds';
-
-const IMAGEBUILD_API_VERSION = 'aipub.ten1010.io/v1alpha1';
-const IMAGEBUILD_KIND = 'ImageBuild';
-
-const LABEL_DOCKERFILE_ID = 'aipub.ten1010.io/dockerfile-id';
-const LABEL_REVISION_ID = 'aipub.ten1010.io/dockerfile-revision-id';
-const LABEL_USERNAME = 'aipub.ten1010.io/username';
-const LABEL_REBUILD_OF = 'aipub.ten1010.io/rebuild-of';
-const ANNOTATION_BASE_IMAGE = 'aipub.ten1010.io/base-image';
-
-const OCI = 'org.opencontainers.image';
-const VENDOR = 'AIPub, TEN Inc';
-
-/**
- * 이미지에 baking 할 자동 라벨 맵을 조립한다. (CR spec.imageLabels → 컨트롤러가 Kaniko --label 로 전개)
- * - provenance: 어떤 Dockerfile/리비전/누가 만든 이미지인지 식별 (aipub.ten1010.io/*)
- * - OCI 표준(org.opencontainers.image.*): 빌드 시점에 결정되는 자동 값(생성시각/제목/리비전 등)
- *
- * 사용자 입력 라벨(version/authors/licenses/url/documentation/커스텀)은 여기서 다루지 않는다.
- * 에디터에서 Dockerfile content 의 LABEL 지시자로 직접 들어가므로(에디터 페이지 buildLabelLines),
- * Kaniko 가 Dockerfile 을 빌드하며 그대로 이미지에 반영한다.
- * 빈 값은 생략한다.
- */
-function buildImageLabels(df: Dockerfile): Record<string, string> {
-  const revision = String(df.latestRevisionId ?? 0);
-  const labels: Record<string, string> = {
-    // provenance (이미지 자체에 baking — CR 이 GC 돼도 이미지로 추적 가능)
-    [LABEL_DOCKERFILE_ID]: String(df.id),
-    [LABEL_REVISION_ID]: revision,
-    [LABEL_USERNAME]: df.username,
-    // OCI 표준 — 빌드 시점 자동 값
-    // (title=org.opencontainers.image.title 은 Dockerfile content 의 LABEL 로 들어가므로 여기서 제외)
-    [`${OCI}.created`]: new Date().toISOString(),
-    [`${OCI}.revision`]: revision,
-    [`${OCI}.vendor`]: VENDOR,
-  };
-  if (df.baseImage) labels[`${OCI}.base.name`] = df.baseImage;
-  if (df.description?.trim()) labels[`${OCI}.description`] = df.description.trim();
-  return labels;
-}
 
 /** k8s ImageBuild CR → UI용 ImageBuild DTO 매핑 (백엔드 crMapToResponse 와 동일 로직) */
 function mapCrToImageBuild(cr: ImageBuildCr): ImageBuild {
@@ -83,21 +52,15 @@ export const buildApi = {
   // dockerfileContent 를 spec 에 inline 하므로 컨트롤러는 spec 만으로 self-contained.
   run: async (input: RunBuildInput): Promise<ImageBuild> => {
     const { dockerfile: df } = input;
-    const cr = {
-      apiVersion: IMAGEBUILD_API_VERSION,
-      kind: IMAGEBUILD_KIND,
-      metadata: {
-        // 서버가 유니크 이름을 부여하도록 generateName 사용 (클라이언트 랜덤 불필요)
-        generateName: 'imagebuild-',
-        namespace: df.project,
-        labels: {
-          [LABEL_DOCKERFILE_ID]: String(df.id),
-          [LABEL_REVISION_ID]: String(df.latestRevisionId ?? 0),
-          [LABEL_USERNAME]: df.username,
-        },
-        annotations: {
-          [ANNOTATION_BASE_IMAGE]: df.baseImage,
-        },
+    const cr = makeImageBuildCr({
+      namespace: df.project,
+      labels: {
+        [LABEL_DOCKERFILE_ID]: String(df.id),
+        [LABEL_REVISION_ID]: String(df.latestRevisionId ?? 0),
+        [LABEL_USERNAME]: df.username,
+      },
+      annotations: {
+        [ANNOTATION_BASE_IMAGE]: df.baseImage,
       },
       spec: {
         dockerfileContent: df.content,
@@ -108,7 +71,7 @@ export const buildApi = {
         ...(input.buildContextSubPath ? { buildContextSubPath: input.buildContextSubPath } : {}),
         ...(input.buildTimeoutSeconds ? { buildTimeoutSeconds: input.buildTimeoutSeconds } : {}),
       },
-    };
+    });
     const created = await k8sApi.createImageBuild(df.project, cr);
     return mapCrToImageBuild(created);
   },
@@ -122,26 +85,19 @@ export const buildApi = {
    */
   rebuild: async (namespace: string, name: string): Promise<ImageBuild> => {
     const src = await k8sApi.getImageBuild(namespace, name);
-    const srcImageLabels = src.spec.imageLabels as Record<string, string> | undefined;
-    const cr = {
-      apiVersion: IMAGEBUILD_API_VERSION,
-      kind: IMAGEBUILD_KIND,
-      metadata: {
-        generateName: 'imagebuild-',
-        namespace,
-        labels: {
-          ...(src.metadata.labels ?? {}),
-          [LABEL_REBUILD_OF]: name,
-        },
-        annotations: { ...(src.metadata.annotations ?? {}) },
+    const srcImageLabels = src.spec.imageLabels;
+    const cr = makeImageBuildCr({
+      namespace,
+      labels: {
+        ...(src.metadata.labels ?? {}),
+        [LABEL_REBUILD_OF]: name,
       },
+      annotations: { ...(src.metadata.annotations ?? {}) },
       spec: {
         ...src.spec,
-        ...(srcImageLabels
-          ? { imageLabels: { ...srcImageLabels, [`${OCI}.created`]: new Date().toISOString() } }
-          : {}),
+        ...(srcImageLabels ? { imageLabels: withRefreshedCreated(srcImageLabels) } : {}),
       },
-    };
+    });
     const created = await k8sApi.createImageBuild(namespace, cr);
     return mapCrToImageBuild(created);
   },

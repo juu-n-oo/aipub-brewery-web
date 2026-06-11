@@ -3,81 +3,45 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
-  Clock,
   CheckCircle2,
   XCircle,
   Loader2,
   Timer,
-  Package,
   Circle,
   FileCode2,
   AlertCircle,
   RotateCcw,
 } from 'lucide-react';
 import { useBuild, useBuildLogStream, useBuildLogs, useRebuild } from '@/hooks/useBuilds';
+import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/Button';
-import { Badge, type BadgeProps } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import type { BuildPhase } from '@/types/build';
-
-const phaseConfig: Record<
-  BuildPhase,
-  { label: string; variant: NonNullable<BadgeProps['variant']>; icon: React.ReactNode }
-> = {
-  Pending: { label: '대기 중', variant: 'secondary', icon: <Clock className="h-4 w-4" /> },
-  Preparing: { label: '준비 중', variant: 'warning', icon: <Package className="h-4 w-4" /> },
-  Building: {
-    label: '빌드 중',
-    variant: 'primary',
-    icon: <Loader2 className="h-4 w-4 animate-spin" />,
-  },
-  Succeeded: { label: '성공', variant: 'success', icon: <CheckCircle2 className="h-4 w-4" /> },
-  Failed: { label: '실패', variant: 'destructive', icon: <XCircle className="h-4 w-4" /> },
-};
-
-// 빌드 단계 (GitHub Actions 스타일)
-const buildSteps = [
-  { key: 'Pending', label: '빌드 대기', desc: '빌드 컨텍스트 구성 중' },
-  { key: 'Preparing', label: '빌드 준비', desc: 'Dockerfile 및 빌드 컨텍스트 설정' },
-  { key: 'Building', label: '이미지 빌드', desc: '이미지 빌드 실행' },
-  { key: 'Push', label: '이미지 Push', desc: 'ImageHub 이미지 push' },
-];
-
-function getStepStatus(
-  currentPhase: BuildPhase,
-  stepKey: string,
-): 'done' | 'active' | 'pending' | 'failed' {
-  const order = ['Pending', 'Preparing', 'Building', 'Push'];
-  const currentIdx =
-    currentPhase === 'Succeeded'
-      ? order.length
-      : currentPhase === 'Failed'
-        ? order.indexOf('Building')
-        : order.indexOf(currentPhase);
-  const stepIdx = order.indexOf(stepKey);
-
-  if (currentPhase === 'Failed' && stepIdx === currentIdx) return 'failed';
-  if (currentPhase === 'Succeeded') return 'done';
-  if (stepIdx < currentIdx) return 'done';
-  if (stepIdx === currentIdx) return 'active';
-  return 'pending';
-}
+import {
+  buildSteps,
+  getStepStatus,
+  phaseMeta,
+  isActivePhase,
+  type StepStatus,
+} from '@/lib/build-phase';
+import { formatDateTime, formatDuration } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function BuildDetailPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { namespace = '', name = '' } = useParams<{ namespace: string; name: string }>();
   const navigate = useNavigate();
 
   const { data: build, isLoading } = useBuild(namespace, name);
-  const isActive =
-    build?.phase === 'Pending' || build?.phase === 'Preparing' || build?.phase === 'Building';
+  const isActive = isActivePhase(build?.phase);
 
   const {
     lines: streamLines,
     connected,
     done: streamDone,
     text: streamText,
-  } = useBuildLogStream(namespace, name, isActive ?? false);
+  } = useBuildLogStream(namespace, name, isActive);
   const { data: staticLogs, error: logsError } = useBuildLogs(namespace, name);
   const rebuildMutation = useRebuild();
 
@@ -98,14 +62,15 @@ export default function BuildDetailPage() {
     );
   }
 
-  const phase = phaseConfig[build.phase];
+  const meta = phaseMeta[build.phase];
+  const PhaseIcon = meta.icon;
   const duration =
     build.startTime && build.completionTime
       ? formatDuration(
           new Date(build.completionTime).getTime() - new Date(build.startTime).getTime(),
         )
       : build.startTime
-        ? '진행 중...'
+        ? t('build.inProgress')
         : '-';
 
   return (
@@ -120,7 +85,7 @@ export default function BuildDetailPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">빌드 상세</h1>
+            <h1 className="text-xl font-semibold text-foreground">{t('build.detail')}</h1>
             <p className="mt-1 font-mono text-sm text-muted-foreground">{build.targetImage}</p>
           </div>
         </div>
@@ -132,7 +97,15 @@ export default function BuildDetailPage() {
               onClick={() =>
                 rebuildMutation.mutate(
                   { namespace, name },
-                  { onSuccess: (nb) => navigate(`/builds/${nb.namespace}/${nb.name}`) },
+                  {
+                    onSuccess: (nb) => navigate(`/builds/${nb.namespace}/${nb.name}`),
+                    onError: (e) =>
+                      toast({
+                        title: t('build.retry'),
+                        description: getErrorMessage(e),
+                        variant: 'destructive',
+                      }),
+                  },
                 )
               }
             >
@@ -145,12 +118,12 @@ export default function BuildDetailPage() {
               variant="outline"
               onClick={() => navigate(`/dockerfiles/${build.dockerfileId}/edit`)}
             >
-              <FileCode2 className="h-4 w-4" /> Dockerfile 편집
+              <FileCode2 className="h-4 w-4" /> {t('build.editDockerfile')}
             </Button>
           )}
-          <Badge variant={phase.variant} className="gap-1.5 px-3.5 py-1.5 text-sm">
-            {phase.icon}
-            {phase.label}
+          <Badge variant={meta.variant} className="gap-1.5 px-3.5 py-1.5 text-sm">
+            <PhaseIcon className={`h-4 w-4 ${meta.spin ? 'animate-spin' : ''}`} />
+            {t(meta.labelKey)}
           </Badge>
         </div>
       </div>
@@ -161,7 +134,7 @@ export default function BuildDetailPage() {
           {/* Build Steps (GitHub Actions style) */}
           <Card className="gap-0 py-0">
             <div className="border-b px-4 py-3.5">
-              <h3 className="text-base font-bold text-foreground">빌드 단계</h3>
+              <h3 className="text-base font-bold text-foreground">{t('build.stepsTitle')}</h3>
             </div>
             <div className="p-3">
               {buildSteps.map((step, idx) => {
@@ -195,12 +168,12 @@ export default function BuildDetailPage() {
                                 : 'text-muted-foreground/70'
                         }`}
                       >
-                        {step.label}
+                        {t(step.labelKey)}
                         {status === 'active' && (
                           <Loader2 className="ml-1.5 inline h-3.5 w-3.5 animate-spin" />
                         )}
                       </div>
-                      <div className="mt-1 text-xs text-muted-foreground/70">{step.desc}</div>
+                      <div className="mt-1 text-xs text-muted-foreground/70">{t(step.descKey)}</div>
                     </div>
                   </div>
                 );
@@ -210,33 +183,33 @@ export default function BuildDetailPage() {
 
           {/* Build Info */}
           <Card className="gap-0 p-4">
-            <h3 className="mb-3 text-base font-bold text-foreground">빌드 정보</h3>
+            <h3 className="mb-3 text-base font-bold text-foreground">{t('build.infoTitle')}</h3>
             <div className="flex flex-col gap-3">
-              <InfoRow label="Project" value={build.namespace} />
-              <InfoRow label="Owner" value={build.username} />
+              <InfoRow label={t('build.infoProject')} value={build.namespace} />
+              <InfoRow label={t('build.infoOwner')} value={build.username} />
               {build.dockerfileRevisionId && build.dockerfileRevisionId > 0 && (
-                <InfoRow label="Dockerfile Revision">
+                <InfoRow label={t('build.infoRevision')}>
                   <span className="font-mono text-sm text-foreground">
                     revision #{build.dockerfileRevisionId}
                   </span>
                 </InfoRow>
               )}
-              <InfoRow label="생성 시간" value={formatDateTime(build.createdAt)} />
-              <InfoRow label="소요 시간">
+              <InfoRow label={t('build.infoCreatedAt')} value={formatDateTime(build.createdAt)} />
+              <InfoRow label={t('build.infoDuration')}>
                 <span className="inline-flex items-center gap-1 text-sm text-foreground">
                   <Timer className="h-3.5 w-3.5 text-muted-foreground" />
                   {duration}
                 </span>
               </InfoRow>
               {build.imageDigest && (
-                <InfoRow label="Digest">
+                <InfoRow label={t('build.infoDigest')}>
                   <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-all">
                     {build.imageDigest}
                   </code>
                 </InfoRow>
               )}
               {build.message && (
-                <InfoRow label="메시지">
+                <InfoRow label={t('build.infoMessage')}>
                   <span className="text-sm text-destructive">{build.message}</span>
                 </InfoRow>
               )}
@@ -256,7 +229,7 @@ export default function BuildDetailPage() {
                 </span>
               )}
               {isActive && !connected && streamDone && (
-                <span className="text-xs text-muted-foreground/70">스트림 완료</span>
+                <span className="text-xs text-muted-foreground/70">{t('build.streamDone')}</span>
               )}
             </div>
           </div>
@@ -296,7 +269,7 @@ export default function BuildDetailPage() {
           variant="outline"
           onClick={() => navigate(`/builds?projectId=${build?.namespace ?? ''}`)}
         >
-          <ArrowLeft className="h-4 w-4" /> 목록으로
+          <ArrowLeft className="h-4 w-4" /> {t('build.backToList')}
         </Button>
       </div>
     </div>
@@ -305,7 +278,7 @@ export default function BuildDetailPage() {
 
 /* ── Sub Components ── */
 
-function StepDot({ status }: { status: 'done' | 'active' | 'pending' | 'failed' }) {
+function StepDot({ status }: { status: StepStatus }) {
   if (status === 'done') return <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />;
   if (status === 'failed') return <XCircle className="h-5 w-5 shrink-0 text-destructive" />;
   if (status === 'active')
@@ -356,23 +329,4 @@ function InfoRow({
       </div>
     </div>
   );
-}
-
-function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
-
-function formatDuration(ms: number): string {
-  const secs = Math.floor(ms / 1000);
-  const mins = Math.floor(secs / 60);
-  const remainSecs = secs % 60;
-  if (mins > 0) return `${mins}m ${remainSecs}s`;
-  return `${remainSecs}s`;
 }

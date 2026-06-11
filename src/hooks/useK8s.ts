@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { k8sApi } from '@/api/k8s';
+import { DEFAULT_STALE_MS } from '@/lib/constants';
 
 export function useProject(name: string) {
   return useQuery({
     queryKey: ['k8s', 'project', name],
     queryFn: () => k8sApi.getProject(name),
     enabled: !!name,
-    staleTime: 5 * 60 * 1000,
+    staleTime: DEFAULT_STALE_MS,
   });
 }
 
@@ -15,7 +16,7 @@ export function useVolumes(namespace: string) {
     queryKey: ['volumes', namespace],
     queryFn: () => k8sApi.getVolumes(namespace),
     enabled: !!namespace,
-    staleTime: 5 * 60 * 1000,
+    staleTime: DEFAULT_STALE_MS,
   });
 }
 

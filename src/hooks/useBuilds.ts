@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { buildApi } from '@/api/build';
+import { API_BASE_URL } from '@/lib/env';
+import { buildKeys } from '@/lib/query-keys';
+import { BUILD_POLL_MS, LOG_POLL_MS } from '@/lib/constants';
+import { isActivePhase } from '@/lib/build-phase';
 import type { ImageBuild, RunBuildInput } from '@/types/build';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-const QUERY_KEY = 'builds';
 
 export function useBuilds(project: string) {
   return useQuery({
-    queryKey: [QUERY_KEY, { project }],
+    queryKey: buildKeys.list(project),
     queryFn: () => buildApi.list(project),
     enabled: !!project,
   });
@@ -17,7 +18,7 @@ export function useBuilds(project: string) {
 export function useBuildsMulti(projectIds: string[]) {
   const results = useQueries({
     queries: projectIds.map((pid) => ({
-      queryKey: [QUERY_KEY, { project: pid }],
+      queryKey: buildKeys.list(pid),
       queryFn: () => buildApi.list(pid),
       enabled: !!pid,
     })),
@@ -37,24 +38,20 @@ export function useBuildsMulti(projectIds: string[]) {
 
 export function useBuild(namespace: string, name: string) {
   return useQuery({
-    queryKey: [QUERY_KEY, namespace, name],
+    queryKey: buildKeys.detail(namespace, name),
     queryFn: () => buildApi.get(namespace, name),
     enabled: !!namespace && !!name,
-    refetchInterval: (query) => {
-      const phase = query.state.data?.phase;
-      if (phase === 'Pending' || phase === 'Preparing' || phase === 'Building') return 3000;
-      return false;
-    },
+    refetchInterval: (query) => (isActivePhase(query.state.data?.phase) ? BUILD_POLL_MS : false),
   });
 }
 
 export function useBuildLogs(namespace: string, name: string) {
   return useQuery({
-    queryKey: [QUERY_KEY, namespace, name, 'logs'],
+    queryKey: buildKeys.logs(namespace, name),
     queryFn: () => buildApi.getLogs(namespace, name),
     enabled: !!namespace && !!name,
     // 로그를 가져올 수 없으면(404 등) 무한 폴링하지 않고 멈춘다.
-    refetchInterval: (query) => (query.state.error ? false : 5000),
+    refetchInterval: (query) => (query.state.error ? false : LOG_POLL_MS),
   });
 }
 
@@ -68,7 +65,9 @@ export function useBuildLogStream(namespace: string, name: string, enabled: bool
   const connect = useCallback(() => {
     if (!namespace || !name || !enabled) return;
 
-    const es = new EventSource(`${API_BASE_URL}/api/v1alpha1/builds/${namespace}/${name}/logs/stream`);
+    const es = new EventSource(
+      `${API_BASE_URL}/api/v1alpha1/builds/${namespace}/${name}/logs/stream`,
+    );
     esRef.current = es;
     setConnected(true);
     setDone(false);
@@ -119,7 +118,7 @@ export function useRunBuild() {
   return useMutation({
     mutationFn: (data: RunBuildInput) => buildApi.run(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: buildKeys.all });
     },
   });
 }
@@ -132,7 +131,7 @@ export function useRebuild() {
     mutationFn: ({ namespace, name }: { namespace: string; name: string }) =>
       buildApi.rebuild(namespace, name),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: buildKeys.all });
     },
   });
 }

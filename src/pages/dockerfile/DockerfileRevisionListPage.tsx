@@ -10,6 +10,7 @@ import {
   User,
 } from 'lucide-react';
 import { useDockerfile, useDockerfileRevisions, useRollbackRevision } from '@/hooks/useDockerfiles';
+import { formatDateTime, shortenImageRef } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -127,7 +128,9 @@ export default function DockerfileRevisionListPage() {
                         )}
                       </div>
                       <p className="text-sm mt-1">
-                        {rev.message || <span className="text-muted-foreground italic">메시지 없음</span>}
+                        {rev.message || (
+                          <span className="text-muted-foreground italic">메시지 없음</span>
+                        )}
                       </p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -137,7 +140,7 @@ export default function DockerfileRevisionListPage() {
                         <span>{formatDateTime(rev.createdAt)}</span>
                         {rev.baseImage && (
                           <span className="font-mono text-xs">
-                            FROM {shortenImage(rev.baseImage)}
+                            FROM {shortenImageRef(rev.baseImage)}
                           </span>
                         )}
                       </div>
@@ -150,7 +153,9 @@ export default function DockerfileRevisionListPage() {
                         size="sm"
                         className="h-7 px-2 text-xs"
                         onClick={() =>
-                          navigate(`/dockerfiles/${id}/revisions/${rev.version}/diff/${revisions[0].version}`)
+                          navigate(
+                            `/dockerfiles/${id}/revisions/${rev.version}/diff/${revisions[0].version}`,
+                          )
                         }
                         title="최신 버전과 비교"
                         disabled={isLatest}
@@ -216,18 +221,4 @@ export default function DockerfileRevisionListPage() {
       </Dialog>
     </div>
   );
-}
-
-function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function shortenImage(fullImage: string): string {
-  const parts = fullImage.split('/');
-  if (parts.length > 2) {
-    return parts.slice(-2).join('/');
-  }
-  return fullImage;
 }

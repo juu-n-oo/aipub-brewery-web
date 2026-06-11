@@ -30,8 +30,7 @@ export const dockerfileApi = {
 
   /* ── Revision endpoints ── */
 
-  listRevisions: (id: number) =>
-    apiClient.get<DockerfileRevision[]>(`${BASE}/${id}/revisions`),
+  listRevisions: (id: number) => apiClient.get<DockerfileRevision[]>(`${BASE}/${id}/revisions`),
 
   getRevision: (id: number, version: number) =>
     apiClient.get<DockerfileRevision>(`${BASE}/${id}/revisions/${version}`),

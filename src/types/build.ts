@@ -48,6 +48,21 @@ export interface ImageBuildCrStatus {
   completionTime?: string;
 }
 
+/**
+ * ImageBuild CR 의 spec (와이어 계약).
+ * 컨트롤러/백엔드 ImageBuildSpec 과 동일 필드. dockerfileContent 를 inline 으로 싣는다.
+ */
+export interface ImageBuildSpec {
+  dockerfileContent: string;
+  targetImage: string;
+  /** 이미지에 baking 할 자동 라벨 (Kaniko --label 로 전개). */
+  imageLabels?: Record<string, string>;
+  pushSecretRef?: string;
+  buildContextPvc?: string;
+  buildContextSubPath?: string;
+  buildTimeoutSeconds?: number;
+}
+
 export interface ImageBuildCr {
   metadata: {
     name: string;
@@ -56,13 +71,26 @@ export interface ImageBuildCr {
     labels?: Record<string, string>;
     annotations?: Record<string, string>;
   };
-  spec: {
-    targetImage: string;
-    [key: string]: unknown;
-  };
+  spec: ImageBuildSpec;
   status?: ImageBuildCrStatus;
 }
 
 export interface ImageBuildList {
   items: ImageBuildCr[];
+}
+
+/**
+ * ImageBuild CR 생성 입력 (k8sproxy POST body).
+ * 서버가 generateName 으로 유니크 이름을 부여하므로 metadata.name 은 없다.
+ */
+export interface ImageBuildCrInput {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    generateName: string;
+    namespace: string;
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+  };
+  spec: ImageBuildSpec;
 }

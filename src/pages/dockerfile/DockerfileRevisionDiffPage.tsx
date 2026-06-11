@@ -7,6 +7,7 @@ import {
   useDockerfileRevision,
   useDockerfileRevisions,
 } from '@/hooks/useDockerfiles';
+import { formatDateTime } from '@/lib/format';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -142,9 +143,7 @@ export default function DockerfileRevisionDiffPage() {
             {rev1.createdBy}
           </span>
           <span>{formatDateTime(rev1.createdAt)}</span>
-          {rev1.message && (
-            <span className="italic truncate max-w-48">{rev1.message}</span>
-          )}
+          {rev1.message && <span className="italic truncate max-w-48">{rev1.message}</span>}
         </div>
         <div className="flex items-center gap-4 bg-card border rounded-md px-3 py-2">
           <span className="font-mono font-semibold">v{rev2.version}</span>
@@ -153,9 +152,7 @@ export default function DockerfileRevisionDiffPage() {
             {rev2.createdBy}
           </span>
           <span>{formatDateTime(rev2.createdAt)}</span>
-          {rev2.message && (
-            <span className="italic truncate max-w-48">{rev2.message}</span>
-          )}
+          {rev2.message && <span className="italic truncate max-w-48">{rev2.message}</span>}
         </div>
       </div>
 
@@ -179,10 +176,4 @@ export default function DockerfileRevisionDiffPage() {
       </div>
     </div>
   );
-}
-
-function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

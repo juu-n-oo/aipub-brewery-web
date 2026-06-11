@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Loader2, Check } from 'lucide-react';
 import { useProject, useRepositories, useImageTags } from '@/hooks/useK8s';
+import { HARBOR_URL } from '@/lib/env';
 import { Button } from '@/components/ui/Button';
 import {
   Dialog,
@@ -10,8 +12,6 @@ import {
   DialogFooter,
 } from '@/components/ui/Dialog';
 
-const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
-
 interface ImageSelectorProps {
   projectId: string;
   open: boolean;
@@ -20,6 +20,7 @@ interface ImageSelectorProps {
 }
 
 export function ImageSelector({ projectId, open, onOpenChange, onSelect }: ImageSelectorProps) {
+  const { t } = useTranslation();
   const handleClose = () => {
     onOpenChange(false);
   };
@@ -30,7 +31,7 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Image className="h-5 w-5 text-primary" />
-            Base Image 선택
+            {t('imageSelector.title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -38,7 +39,7 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            닫기
+            {t('common.close')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -57,6 +58,7 @@ function AIPubImageSelector({
   onSelect: (ref: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [selectedHub, setSelectedHub] = useState('');
   const [selectedRepo, setSelectedRepo] = useState('');
 
@@ -85,10 +87,10 @@ function AIPubImageSelector({
       )}
       <div className="flex border border-border rounded-lg overflow-hidden h-[320px]">
         <Column
-          title="ImageHub"
+          title={t('imageSelector.imageHub')}
           loading={projectLoading}
           empty={imageHubs.length === 0}
-          emptyText="ImageHub 없음"
+          emptyText={t('imageSelector.imageHubEmpty')}
         >
           {imageHubs.map((hub) => (
             <ColumnItem
@@ -103,12 +105,12 @@ function AIPubImageSelector({
           ))}
         </Column>
         <Column
-          title="Repository"
+          title={t('imageSelector.repository')}
           loading={repoLoading && !!selectedHub}
           empty={!!selectedHub && !repoLoading && repos.length === 0}
-          emptyText="리포지토리 없음"
+          emptyText={t('imageSelector.repositoryEmpty')}
           placeholder={!selectedHub}
-          placeholderText="ImageHub를 선택하세요"
+          placeholderText={t('imageSelector.selectImageHub')}
         >
           {repos.map((r) => (
             <ColumnItem
@@ -120,12 +122,12 @@ function AIPubImageSelector({
           ))}
         </Column>
         <Column
-          title="Tag"
+          title={t('imageSelector.tag')}
           loading={tagLoading && !!selectedRepo}
           empty={!!selectedRepo && !tagLoading && allTags.length === 0}
-          emptyText="태그 없음"
+          emptyText={t('imageSelector.tagEmpty')}
           placeholder={!selectedRepo}
-          placeholderText="Repository를 선택하세요"
+          placeholderText={t('imageSelector.selectRepository')}
           isLast
         >
           {allTags.map(({ tag, digest }) => (
@@ -143,7 +145,9 @@ function AIPubImageSelector({
                   {digest.slice(0, 24)}...
                 </span>
               </div>
-              <span className="text-xs text-primary shrink-0 ml-2">선택</span>
+              <span className="text-xs text-primary shrink-0 ml-2">
+                {t('imageSelector.select')}
+              </span>
             </li>
           ))}
         </Column>

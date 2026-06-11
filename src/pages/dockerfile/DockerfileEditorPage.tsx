@@ -6,20 +6,7 @@ import type * as Monaco from 'monaco-editor';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  AlertTriangle,
-  Play,
-  Plus,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  HardDrive,
-  Terminal,
-  Variable,
-  Copy,
-  History,
-} from 'lucide-react';
+import { AlertTriangle, Play, Plus, ChevronDown, History } from 'lucide-react';
 import {
   useDockerfile,
   useDockerfileList,
@@ -32,437 +19,20 @@ import { useAuth } from '@/hooks/useAuthContext';
 import { useToast } from '@/hooks/useToast';
 import { useProject, useVolumes } from '@/hooks/useK8s';
 import { validateDockerfile, type DockerfileWarning } from '@/lib/dockerfile-validator';
+import { getErrorMessage } from '@/lib/errors';
+import { HARBOR_URL } from '@/lib/env';
+import { clampTimeoutMinutesToSeconds, BUILD_TIMEOUT_DEFAULT_MINUTES } from '@/lib/constants';
+import { normalizeImageRef } from '@/lib/dockerfile-content';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { ImageSelector } from '@/components/ImageSelector';
-import { VolumeBrowser } from '@/components/VolumeBrowser';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/Dialog';
-
-const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
-
-/* ── Types ── */
-
-type InstructionType = 'RUN' | 'COPY_VOLUME' | 'ENV';
-
-interface EnvPair {
-  key: string;
-  value: string;
-}
-
-interface Instruction {
-  id: string;
-  type: InstructionType;
-  // RUN
-  command?: string;
-  // COPY (Volume에서 선택 또는 업로드한 파일 — 둘 다 같은 PVC 경로 모델)
-  volumeName?: string;
-  volumePath?: string;
-  volumeDest?: string;
-  // ENV
-  envPairs?: EnvPair[];
-}
-
-/** 사용자가 입력하는 이미지 메타데이터. Dockerfile content 의 LABEL 지시자로 굽힌다(round-trip). */
-interface ImageLabelFields {
-  version: string;
-  authors: string;
-  licenses: string;
-  url: string;
-  documentation: string;
-  /** 임의 커스텀 라벨 (key=value). 빈 key 는 무시된다. */
-  custom: { key: string; value: string }[];
-}
-
-interface DockerfileFields {
-  baseImage: string;
-  instructions: Instruction[];
-  workdir: string;
-  exposePorts: string;
-  cmd: string;
-  labels: ImageLabelFields;
-}
-
-const emptyLabels: ImageLabelFields = {
-  version: '',
-  authors: '',
-  licenses: '',
-  url: '',
-  documentation: '',
-  custom: [],
-};
-
-const defaultFields: DockerfileFields = {
-  baseImage: '',
-  instructions: [],
-  workdir: '/workspace',
-  exposePorts: '',
-  cmd: 'bash',
-  labels: { ...emptyLabels, custom: [{ key: '', value: '' }] },
-};
-
-/* ── 이미지 메타데이터 ↔ OCI LABEL 매핑 ── */
-
-const OCI_PREFIX = 'org.opencontainers.image';
-const OCI_LABEL_KEYS = {
-  title: `${OCI_PREFIX}.title`,
-  version: `${OCI_PREFIX}.version`,
-  authors: `${OCI_PREFIX}.authors`,
-  licenses: `${OCI_PREFIX}.licenses`,
-  url: `${OCI_PREFIX}.url`,
-  documentation: `${OCI_PREFIX}.documentation`,
-} as const;
-
-/** 전용 입력 필드(또는 자동 title)로 관리되는 라벨 키 — 커스텀 라벨에서 중복 지정 시 경고. */
-const MANAGED_LABEL_KEYS = new Set<string>(Object.values(OCI_LABEL_KEYS));
-
-/** 메타데이터 영역을 펼치면 기본 노출되는 표준(OCI) 필드 정의. title 은 Dockerfile 이름에서 자동이라 제외. */
-type StandardMetaKey = 'version' | 'authors' | 'licenses' | 'url' | 'documentation';
-const STANDARD_META: { key: StandardMetaKey; label: string; placeholder: string }[] = [
-  { key: 'version', label: 'Version', placeholder: '예: 1.0.0' },
-  { key: 'authors', label: 'Authors', placeholder: '예: joonwoo' },
-  { key: 'licenses', label: 'License', placeholder: '예: Apache-2.0, MIT (SPDX expression)' },
-  { key: 'url', label: 'URL', placeholder: '예: https://github.com/org/repo' },
-  { key: 'documentation', label: 'Documentation', placeholder: '예: https://docs.example.com' },
-];
-
-/** LABEL 값 인용/이스케이프 ("..." 로 감싸고 \, " 를 이스케이프). */
-function quoteLabelValue(v: string): string {
-  return `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-}
-
-/**
- * ImageLabelFields(+ Dockerfile 이름) → `LABEL key="value"` 줄 목록 (빈 값 생략).
- * title 은 Dockerfile 이름에서 자동 생성한다(별도 입력 필드 없음).
- */
-function buildLabelLines(labels: ImageLabelFields, title: string): string[] {
-  const out: string[] = [];
-  if (title.trim()) out.push(`LABEL ${OCI_LABEL_KEYS.title}=${quoteLabelValue(title.trim())}`);
-  const known: [string, string][] = [
-    [OCI_LABEL_KEYS.version, labels.version],
-    [OCI_LABEL_KEYS.authors, labels.authors],
-    [OCI_LABEL_KEYS.licenses, labels.licenses],
-    [OCI_LABEL_KEYS.url, labels.url],
-    [OCI_LABEL_KEYS.documentation, labels.documentation],
-  ];
-  for (const [key, value] of known) {
-    if (value.trim()) out.push(`LABEL ${key}=${quoteLabelValue(value.trim())}`);
-  }
-  for (const { key, value } of labels.custom) {
-    const k = key.trim();
-    if (k) out.push(`LABEL ${k}=${quoteLabelValue(value.trim())}`);
-  }
-  return out;
-}
-
-/** `LABEL a="x y" b=z` 한 줄을 key-value 쌍으로 파싱 (인용/이스케이프 처리). */
-function parseLabelInstruction(rest: string): { key: string; value: string }[] {
-  const pairs: { key: string; value: string }[] = [];
-  let i = 0;
-  while (i < rest.length) {
-    while (i < rest.length && /\s/.test(rest[i])) i++;
-    if (i >= rest.length) break;
-    let key = '';
-    while (i < rest.length && rest[i] !== '=' && !/\s/.test(rest[i])) key += rest[i++];
-    if (rest[i] !== '=') break; // 잘못된 형식
-    i++; // '=' 건너뜀
-    let value = '';
-    if (rest[i] === '"') {
-      i++;
-      while (i < rest.length && rest[i] !== '"') {
-        if (rest[i] === '\\' && i + 1 < rest.length) {
-          i++;
-          value += rest[i++];
-        } else {
-          value += rest[i++];
-        }
-      }
-      i++; // 닫는 따옴표
-    } else {
-      while (i < rest.length && !/\s/.test(rest[i])) value += rest[i++];
-    }
-    if (key) pairs.push({ key, value });
-  }
-  return pairs;
-}
-
-let nextInstrId = 1;
-function newId() {
-  return `instr-${nextInstrId++}`;
-}
-
-/** 이미지 레퍼런스를 비교용으로 정규화한다. 태그가 없으면 `:latest` 로 보정한다. (다이제스트 `@sha256:` 은 그대로) */
-function normalizeImageRef(ref: string): string {
-  const trimmed = ref.trim();
-  if (!trimmed) return '';
-  if (trimmed.includes('@')) return trimmed;
-  const lastSlash = trimmed.lastIndexOf('/');
-  const lastColon = trimmed.lastIndexOf(':');
-  const hasTag = lastColon > lastSlash;
-  return hasTag ? trimmed : `${trimmed}:latest`;
-}
-
-/* ── Parse Dockerfile content → fields ── */
-
-function parseDockerfileContent(content: string): DockerfileFields {
-  const lines = content.split('\n');
-  let baseImage = '';
-  const instructions: Instruction[] = [];
-  let workdir = '';
-  const exposePorts: string[] = [];
-  let cmd = '';
-  const labels: ImageLabelFields = { ...emptyLabels, custom: [] };
-
-  let pendingVolumeName: string | null = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i];
-    const trimmed = raw.trim();
-
-    if (!trimmed) continue;
-
-    // AIPub Volume 주석: 다음 COPY 라인과 쌍으로 처리
-    const volumeComment = /^#\s*Source:\s*AIPub Volume\s+"(.+)"$/i.exec(trimmed);
-    if (volumeComment) {
-      pendingVolumeName = volumeComment[1];
-      continue;
-    }
-
-    if (trimmed.startsWith('#')) continue;
-
-    const upper = trimmed.toUpperCase();
-
-    if (upper.startsWith('FROM ')) {
-      const match = /^FROM\s+(.+)$/i.exec(trimmed);
-      if (match) {
-        const tokens = match[1].trim().split(/\s+/);
-        for (const token of tokens) {
-          if (token.startsWith('--')) continue;
-          baseImage = token;
-          break;
-        }
-      }
-      continue;
-    }
-
-    if (upper.startsWith('RUN ')) {
-      const command = trimmed.substring(4).trim();
-      if (command) {
-        instructions.push({ id: newId(), type: 'RUN', command });
-      }
-      continue;
-    }
-
-    if (upper.startsWith('COPY ') || upper.startsWith('ADD ')) {
-      const isAdd = upper.startsWith('ADD ');
-      const rest = trimmed.substring(isAdd ? 4 : 5).trim();
-      const parts = rest.split(/\s+/);
-
-      if (parts.length >= 2) {
-        // COPY 는 모두 Volume(또는 업로드) 소스로 통합한다.
-        // "# Source: AIPub Volume" 주석이 앞에 있으면 그 볼륨을 채우고,
-        // 없으면 volumeName 을 비워 사용자가 "찾아보기"로 다시 지정하도록 둔다.
-        instructions.push({
-          id: newId(),
-          type: 'COPY_VOLUME',
-          volumeName: pendingVolumeName ?? '',
-          volumePath: '/' + parts.slice(0, -1).join(' '),
-          volumeDest: parts[parts.length - 1],
-        });
-      }
-      pendingVolumeName = null;
-      continue;
-    }
-
-    if (upper.startsWith('ENV ')) {
-      const rest = trimmed.substring(4).trim();
-      const envPairs: EnvPair[] = [];
-      // ENV KEY=VALUE KEY2=VALUE2 형태
-      const pairRegex = /(\S+?)=(\S*)/g;
-      let m;
-      while ((m = pairRegex.exec(rest)) !== null) {
-        envPairs.push({ key: m[1], value: m[2] });
-      }
-      if (envPairs.length === 0) {
-        // ENV KEY VALUE 형태 (단일)
-        const spParts = rest.split(/\s+/);
-        if (spParts.length >= 2) {
-          envPairs.push({ key: spParts[0], value: spParts.slice(1).join(' ') });
-        } else if (spParts.length === 1) {
-          envPairs.push({ key: spParts[0], value: '' });
-        }
-      }
-      if (envPairs.length > 0) {
-        instructions.push({ id: newId(), type: 'ENV', envPairs });
-      }
-      continue;
-    }
-
-    if (upper.startsWith('LABEL ')) {
-      const rest = trimmed.substring(6).trim();
-      for (const { key, value } of parseLabelInstruction(rest)) {
-        switch (key) {
-          case OCI_LABEL_KEYS.title:
-            // title 은 Dockerfile 이름에서 자동 생성 → 필드에 저장하지 않음 (재생성 시 중복 방지)
-            break;
-          case OCI_LABEL_KEYS.version:
-            labels.version = value;
-            break;
-          case OCI_LABEL_KEYS.authors:
-            labels.authors = value;
-            break;
-          case OCI_LABEL_KEYS.licenses:
-            labels.licenses = value;
-            break;
-          case OCI_LABEL_KEYS.url:
-            labels.url = value;
-            break;
-          case OCI_LABEL_KEYS.documentation:
-            labels.documentation = value;
-            break;
-          default:
-            labels.custom.push({ key, value });
-        }
-      }
-      continue;
-    }
-
-    if (upper.startsWith('WORKDIR ')) {
-      workdir = trimmed.substring(8).trim();
-      continue;
-    }
-
-    if (upper.startsWith('EXPOSE ')) {
-      const port = trimmed.substring(7).trim();
-      if (port) exposePorts.push(port);
-      continue;
-    }
-
-    if (upper.startsWith('CMD ')) {
-      const rest = trimmed.substring(4).trim();
-      // CMD ["bash"] → bash
-      const jsonMatch = /^\[(.+)]$/.exec(rest);
-      if (jsonMatch) {
-        try {
-          const arr = JSON.parse(`[${jsonMatch[1]}]`);
-          cmd = arr.join(' ');
-        } catch {
-          cmd = rest;
-        }
-      } else {
-        cmd = rest;
-      }
-      continue;
-    }
-
-    // ENTRYPOINT 등 지원 안 되는 지시자는 무시 (editor 모드에서 유지됨)
-    pendingVolumeName = null;
-  }
-
-  return {
-    baseImage,
-    instructions,
-    workdir,
-    exposePorts: exposePorts.join(' '),
-    cmd,
-    labels,
-  };
-}
-
-/* ── Generate Dockerfile ── */
-
-function generateDockerfileContent(fields: DockerfileFields, imageTitle = ''): string {
-  const lines: string[] = [];
-
-  lines.push(`FROM ${fields.baseImage || '<base-image>'}`);
-  lines.push('');
-
-  for (const instr of fields.instructions) {
-    switch (instr.type) {
-      case 'RUN':
-        if (instr.command?.trim()) {
-          lines.push(`RUN ${instr.command.trim()}`);
-          lines.push('');
-        }
-        break;
-      case 'COPY_VOLUME':
-        if (instr.volumeName && instr.volumePath?.trim() && instr.volumeDest?.trim()) {
-          // PVC 루트 기준 상대 경로로 변환 (앞의 / 제거)
-          const relativePath = instr.volumePath.trim().replace(/^\/+/, '');
-          lines.push(`# Source: AIPub Volume "${instr.volumeName}"`);
-          lines.push(`COPY ${relativePath} ${instr.volumeDest.trim()}`);
-          lines.push('');
-        }
-        break;
-      case 'ENV': {
-        const parts = (instr.envPairs ?? [])
-          .filter((p) => p.key.trim())
-          .map((p) => `${p.key.trim()}=${p.value.trim()}`);
-        if (parts.length > 0) {
-          lines.push(`ENV ${parts.join(' ')}`);
-          lines.push('');
-        }
-        break;
-      }
-    }
-  }
-
-  if (fields.workdir.trim()) {
-    lines.push(`WORKDIR ${fields.workdir.trim()}`);
-    lines.push('');
-  }
-
-  const ports = fields.exposePorts
-    .split(/[\s,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (ports.length > 0) {
-    ports.forEach((p) => lines.push(`EXPOSE ${p}`));
-    lines.push('');
-  }
-
-  if (fields.cmd.trim()) {
-    const cmdParts = fields.cmd.trim().split(/\s+/);
-    lines.push(`CMD [${cmdParts.map((p) => `"${p}"`).join(', ')}]`);
-  }
-
-  // 이미지 메타데이터 LABEL (최하단). title 은 Dockerfile 이름에서 자동. 빈 값은 생략.
-  // 라벨만 바뀔 때 위쪽 RUN 레이어 캐시가 깨지지 않도록 맨 끝에 둔다.
-  const labelLines = buildLabelLines(fields.labels, imageTitle);
-  if (labelLines.length > 0) {
-    if (lines[lines.length - 1] !== '') lines.push('');
-    labelLines.forEach((l) => lines.push(l));
-  }
-
-  return lines.join('\n') + '\n';
-}
-
-/* ── Extract base image from Dockerfile content ── */
-
-// 첫 번째 유효한 `FROM <image>` 라인에서 베이스 이미지 ref 를 추출한다.
-// 주석(#) / 빈 줄은 건너뛰고, `FROM --platform=... image AS stage` 형태에서
-// 플래그와 `AS <stage>` 별칭을 제외한 이미지 토큰만 반환한다. 없으면 ''.
-function extractBaseImage(content: string): string {
-  for (const rawLine of content.split('\n')) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    const match = /^FROM\s+(.+)$/i.exec(line);
-    if (!match) continue;
-    const tokens = match[1].trim().split(/\s+/);
-    for (const token of tokens) {
-      if (token.startsWith('--')) continue; // --platform 등 플래그 무시
-      return token; // 첫 번째 비-플래그 토큰이 이미지 ref (이후 AS stage 는 무시)
-    }
-  }
-  return '';
-}
+import { useDockerfileEditorState } from './editor/useDockerfileEditorState';
+import { InstructionBlock } from './editor/InstructionBlock';
+import { instrTypeOptions } from './editor/instr-options';
+import { LabelEditor } from './editor/LabelEditor';
+import { BuildDialog } from './editor/BuildDialog';
+import { SaveRevisionDialog } from './editor/SaveRevisionDialog';
 
 /* ── Form Schema ── */
 
@@ -477,35 +47,7 @@ const dockerfileSchema = z.object({
 
 type FormData = z.infer<typeof dockerfileSchema>;
 
-/* ── Instruction Type Config ── */
-
-const instrTypeOptions: {
-  value: InstructionType;
-  label: string;
-  icon: React.ReactNode;
-  desc: string;
-}[] = [
-  {
-    value: 'RUN',
-    label: 'RUN',
-    icon: <Terminal className="h-3.5 w-3.5" />,
-    desc: '쉘 명령어 실행',
-  },
-  {
-    value: 'COPY_VOLUME',
-    label: 'COPY (파일 복사)',
-    icon: <HardDrive className="h-3.5 w-3.5" />,
-    desc: 'AIPub Volume에서 선택하거나 파일을 업로드해 복사',
-  },
-  {
-    value: 'ENV',
-    label: 'ENV',
-    icon: <Variable className="h-3.5 w-3.5" />,
-    desc: '환경 변수 설정',
-  },
-];
-
-/* ── Main Component ── */
+/* ── Main Component (orchestration) ── */
 
 export default function DockerfileEditorPage() {
   const { t } = useTranslation();
@@ -527,7 +69,7 @@ export default function DockerfileEditorPage() {
   const runBuildMutation = useRunBuild();
   const { data: volumeList } = useVolumes(selectedProjectId);
   const { data: projectData } = useProject(selectedProjectId);
-  // 이름 중복 사전검증용: 본인 소유 Dockerfile 목록 (멤버=바인딩 프로젝트 본인분, 관리자=owner 필터)
+  // 이름 중복 사전검증용: 본인 소유 Dockerfile 목록
   const { data: dfList } = useDockerfileList({
     isAdmin,
     projects: projects.map((p) => p.name),
@@ -536,40 +78,6 @@ export default function DockerfileEditorPage() {
 
   const volumes = volumeList?.items ?? [];
   const imageHubs = projectData?.status?.allBoundImageHubs ?? [];
-
-  const [content, setContent] = useState('');
-  const [fields, setFields] = useState<DockerfileFields>({ ...defaultFields, instructions: [] });
-  const [warnings, setWarnings] = useState<DockerfileWarning[]>([]);
-  const [showBuildDialog, setShowBuildDialog] = useState(false);
-  const [showImageSelector, setShowImageSelector] = useState(false);
-  const [showAddInstr, setShowAddInstr] = useState(false);
-  const [buildTag, setBuildTag] = useState('latest');
-  const [buildImageName, setBuildImageName] = useState('');
-  const [selectedImageHub, setSelectedImageHub] = useState('');
-  const [buildContextVolume, setBuildContextVolume] = useState('');
-  const [buildContextSubPath, setBuildContextSubPath] = useState('');
-  // 빌드 제한 시간(분, 사용자 친화 단위). 전송 시 초로 변환해 CR spec.buildTimeoutSeconds 로 보낸다.
-  // 기본 60분(컨트롤러 기본값과 동일), 허용 범위 1~360분.
-  const [buildTimeoutMinutes, setBuildTimeoutMinutes] = useState(60);
-  // 이미지 메타데이터(OCI 라벨)는 fields.labels 에 보관 → Dockerfile content 의 LABEL 로 생성/파싱된다.
-  // metaExpanded: 메타데이터 섹션 헤더 토글 상태. 펼치면 표준 필드(Version/Author/...)가 기본 노출된다.
-  const [metaExpanded, setMetaExpanded] = useState(false);
-  // "생성 후 빌드" 의도 기억: true 이면 빌드 다이얼로그 확인 시 생성→빌드를 연속 수행한다.
-  const [buildAfterCreate, setBuildAfterCreate] = useState(false);
-  const [revisionMessage, setRevisionMessage] = useState('');
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [pendingSaveData, setPendingSaveData] = useState<FormData | null>(null);
-  const [mode, setMode] = useState<'form' | 'editor'>('form');
-  const [baseImageError, setBaseImageError] = useState('');
-  // 초기 하이드레이션(EDIT 시 기존 데이터 주입)이 끝났는지 추적한다.
-  // 이 플래그가 false 인 동안 form↔content 동기화 effect 가 실행되지 않도록 막아
-  // "수정 화면을 열고 아무것도 건드리지 않은 채 저장하면 content 가 그대로" 인 불변식을 보장한다.
-  const didInitRef = useRef(false);
-  // 사용자가 빌드 다이얼로그의 이미지 이름을 직접 수정했는지 추적한다.
-  // true 가 되면 Dockerfile 이름 변경이 더 이상 이미지 이름을 덮어쓰지 않는다.
-  const buildImageNameDirty = useRef(false);
-  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
-  const monacoRef = useRef<typeof Monaco | null>(null);
 
   const {
     register,
@@ -586,58 +94,56 @@ export default function DockerfileEditorPage() {
 
   const nameValue = watch('name');
 
+  // 폼 필드 ↔ content 동기화/dirty 추적은 전용 훅으로 분리.
+  const editorState = useDockerfileEditorState({ isEdit, existing, username, nameValue });
+  const {
+    content,
+    setContent,
+    fields,
+    setFields,
+    mode,
+    setMode,
+    metaExpanded,
+    setMetaExpanded,
+    addInstruction,
+    updateInstruction,
+    removeInstruction,
+    moveInstruction,
+    updateLabels,
+    setBaseImage,
+    switchToForm,
+    resolveBaseImage,
+  } = editorState;
+
+  const [warnings, setWarnings] = useState<DockerfileWarning[]>([]);
+  const [showBuildDialog, setShowBuildDialog] = useState(false);
+  const [showImageSelector, setShowImageSelector] = useState(false);
+  const [showAddInstr, setShowAddInstr] = useState(false);
+  const [buildTag, setBuildTag] = useState('latest');
+  const [buildImageName, setBuildImageName] = useState('');
+  const [selectedImageHub, setSelectedImageHub] = useState('');
+  const [buildContextVolume, setBuildContextVolume] = useState('');
+  const [buildContextSubPath, setBuildContextSubPath] = useState('');
+  const [buildTimeoutMinutes, setBuildTimeoutMinutes] = useState(BUILD_TIMEOUT_DEFAULT_MINUTES);
+  const [buildAfterCreate, setBuildAfterCreate] = useState(false);
+  const [revisionMessage, setRevisionMessage] = useState('');
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<FormData | null>(null);
+  const [baseImageError, setBaseImageError] = useState('');
+
+  // 사용자가 빌드 다이얼로그의 이미지 이름을 직접 수정했는지 추적한다.
+  const buildImageNameDirty = useRef(false);
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
+
+  // EDIT 하이드레이션: 폼 필드(name/description/project)는 페이지가 소유.
   useEffect(() => {
     if (existing) {
       setValue('name', existing.name);
       setValue('description', existing.description || '');
-      setContent(existing.content);
       setSelectedProjectId(existing.project);
-      // content 에서 fields 전체를 파싱하여 form 모드에서도 명령어 블록이 유지되도록 한다.
-      const parsed = parseDockerfileContent(existing.content);
-      // 서버가 내려준 baseImage 가 있으면 파싱 결과보다 우선한다.
-      if (existing.baseImage) {
-        parsed.baseImage = existing.baseImage;
-      }
-      // 커스텀 라벨이 없으면 빈 입력란 1개를 기본으로 둔다.
-      if (parsed.labels.custom.length === 0) {
-        parsed.labels.custom = [{ key: '', value: '' }];
-      }
-      setFields(parsed);
-      // 하이드레이션 완료 표시: 이 시점 이후의 fields 변경만 content 에 반영한다.
-      didInitRef.current = true;
     }
   }, [existing, setValue]);
-
-  // CREATE 모드에서는 주입할 기존 데이터가 없으므로 마운트 직후 동기화를 활성화한다.
-  useEffect(() => {
-    if (!isEdit) didInitRef.current = true;
-  }, [isEdit]);
-
-  // CREATE 모드: 이미지 라벨 기본값 — Authors=로그인 사용자, Version=latest.
-  // (title 은 Dockerfile 이름에서 자동 생성) username 로드 후 1회만, 빈 값일 때만 채운다.
-  useEffect(() => {
-    if (isEdit || !username) return;
-    setFields((p) =>
-      p.labels.authors
-        ? p
-        : {
-            ...p,
-            labels: {
-              ...p.labels,
-              authors: username,
-              version: p.labels.version || 'latest',
-            },
-          },
-    );
-  }, [isEdit, username]);
-
-  // 라벨 값이 있으면(prefill/파싱 결과) 메타데이터 섹션을 자동으로 펼친다. (접기는 사용자가 직접)
-  useEffect(() => {
-    const hasValue =
-      STANDARD_META.some(({ key }) => fields.labels[key]?.trim()) ||
-      fields.labels.custom.some((p) => p.key.trim() || p.value.trim());
-    if (hasValue) setMetaExpanded((prev) => prev || true);
-  }, [fields.labels]);
 
   // imageHub 목록이 로드되면 첫 번째를 기본 선택
   useEffect(() => {
@@ -646,23 +152,12 @@ export default function DockerfileEditorPage() {
     }
   }, [imageHubs, selectedImageHub]);
 
-  // 이미지 이름 기본값 = Dockerfile 이름. 사용자가 직접 수정(dirty)하기 전까지만 동기화한다.
+  // 이미지 이름 기본값 = Dockerfile 이름 (직접 수정 전까지만 동기화)
   useEffect(() => {
     if (buildImageNameDirty.current) return;
     const name = existing?.name ?? nameValue;
     if (name) setBuildImageName(name);
   }, [nameValue, existing?.name]);
-
-  // Sync fields → content (form mode)
-  useEffect(() => {
-    // 초기 하이드레이션 전에는 동기화하지 않는다. (EDIT 시 기존 content 가 덮어써지는 것을 방지)
-    if (!didInitRef.current) return;
-    if (mode === 'form') {
-      const generated = generateDockerfileContent(fields, nameValue || existing?.name || '');
-      setContent(generated);
-      updateMarkers(generated);
-    }
-  }, [fields, mode, nameValue, existing?.name]);
 
   const updateMarkers = useCallback((value: string) => {
     const newWarnings = validateDockerfile(value);
@@ -683,6 +178,11 @@ export default function DockerfileEditorPage() {
     monaco.editor.setModelMarkers(model, 'dockerfile-validator', markers);
   }, []);
 
+  // content 변경 시(폼 동기화 또는 직접 편집) 마커 갱신.
+  useEffect(() => {
+    updateMarkers(content);
+  }, [content, updateMarkers]);
+
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
@@ -690,94 +190,77 @@ export default function DockerfileEditorPage() {
   };
 
   const handleEditorChange = (value: string | undefined) => {
-    const newValue = value ?? '';
-    setContent(newValue);
-    updateMarkers(newValue);
+    setContent(value ?? '');
   };
 
-  // 탭 전환: 에디터에서 직접 수정한 content 를 입력 폼 필드에 반영한다(editor → form).
-  // 폼은 명령어 블록 기반이라 ENTRYPOINT/ARG/멀티스테이지 등 폼이 표현 못 하는 지시자는
-  // 폼으로 전환하는 순간 떨어져 나가므로(폼이 content 를 재생성), 그 점만 유의한다.
-  const switchToForm = () => {
-    if (mode === 'editor') {
-      const parsed = parseDockerfileContent(content);
-      // 커스텀 라벨이 없으면 빈 입력란 1개를 기본으로 둔다(폼 UX 일관성).
-      if (parsed.labels.custom.length === 0) {
-        parsed.labels.custom = [{ key: '', value: '' }];
+  // form↔editor 전환 가드(WEB-15): editor 에서 form 으로 갈 때 미지원 지시자 소실 경고.
+  const handleSwitchToForm = () => {
+    if (mode === 'editor' && !window.confirm(t('editor.switchToFormWarning'))) return;
+    switchToForm();
+  };
+
+  /* ── 빌드 컨텍스트/타깃 이미지 계산 ── */
+
+  const hasCopyInstruction =
+    fields.instructions.some((i) => i.type === 'COPY_VOLUME') || /^COPY\s/m.test(content);
+
+  // 모든 ENV 블록 통틀어 2회 이상 등장하는 키 (중복 경고용)
+  const duplicateEnvKeys = (() => {
+    const counts = new Map<string, number>();
+    for (const instr of fields.instructions) {
+      if (instr.type !== 'ENV') continue;
+      for (const p of instr.envPairs ?? []) {
+        const k = p.key.trim();
+        if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
       }
-      setFields(parsed);
     }
-    setMode('form');
-  };
+    return new Set([...counts.entries()].filter(([, c]) => c > 1).map(([k]) => k));
+  })();
 
-  /* ── Instruction CRUD ── */
+  // COPY 가 참조할 빌드 컨텍스트 Volume → PVC 해석
+  const buildContextVolName =
+    buildContextVolume ||
+    fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName)?.volumeName ||
+    (hasCopyInstruction && volumes.length > 0 ? volumes[0].name : '');
+  const buildContextPvc = volumes.find((v) => v.name === buildContextVolName)?.pvcName;
+  const buildContextMissing = hasCopyInstruction && !buildContextPvc;
 
-  const addInstruction = (type: InstructionType) => {
-    const instr: Instruction = { id: newId(), type };
-    if (type === 'RUN') instr.command = '';
-    if (type === 'COPY_VOLUME') {
-      instr.volumeName = '';
-      instr.volumePath = '';
-      instr.volumeDest = '/workspace/';
-    }
-    if (type === 'ENV') {
-      instr.envPairs = [{ key: '', value: '' }];
-    }
-    setFields((prev) => ({ ...prev, instructions: [...prev.instructions, instr] }));
-    setShowAddInstr(false);
-  };
+  // 빌드 대상 이미지 ref 조립
+  const targetImageRepo = buildImageName.trim();
+  const targetTag = buildTag.trim() || 'latest';
+  const targetImageRef =
+    selectedImageHub && targetImageRepo
+      ? `${HARBOR_URL}/${selectedImageHub}/${targetImageRepo}`
+      : '';
+  const targetImageFull = targetImageRef ? `${targetImageRef}:${targetTag}` : '';
+  const overwritesBase =
+    !!targetImageFull &&
+    normalizeImageRef(targetImageFull) === normalizeImageRef(resolveBaseImage());
 
-  const updateInstruction = (id: string, patch: Partial<Instruction>) => {
-    setFields((prev) => ({
-      ...prev,
-      instructions: prev.instructions.map((i) => (i.id === id ? { ...i, ...patch } : i)),
-    }));
-  };
+  // 이름 중복 검사 (프론트 사전검증)
+  const trimmedName = (nameValue ?? '').trim();
+  const duplicateName =
+    !!trimmedName &&
+    (dfList ?? []).some(
+      (d) =>
+        d.project === selectedProjectId &&
+        d.username === username &&
+        d.name === trimmedName &&
+        d.id !== dockerfileId,
+    );
 
-  const removeInstruction = (id: string) => {
-    setFields((prev) => ({
-      ...prev,
-      instructions: prev.instructions.filter((i) => i.id !== id),
-    }));
-  };
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  const moveInstruction = (idx: number, dir: -1 | 1) => {
-    setFields((prev) => {
-      const arr = [...prev.instructions];
-      const target = idx + dir;
-      if (target < 0 || target >= arr.length) return prev;
-      [arr[idx], arr[target]] = [arr[target], arr[idx]];
-      return { ...prev, instructions: arr };
-    });
-  };
+  /* ── baseImage 검증 ── */
 
-  // 이미지 메타데이터(LABEL) 패치
-  const updateLabel = (patch: Partial<ImageLabelFields>) =>
-    setFields((p) => ({ ...p, labels: { ...p.labels, ...patch } }));
-
-  const updateStandardLabel = (k: StandardMetaKey, v: string) =>
-    setFields((p) => ({ ...p, labels: { ...p.labels, [k]: v } }));
-
-  // 커스텀 라벨 행 추가/제거 (ENV 입력과 동일한 방식)
-  const addCustomLabel = () =>
-    updateLabel({ custom: [...fields.labels.custom, { key: '', value: '' }] });
-
-  /* ── Submit ── */
-
-  // 저장 시 전송할 baseImage 계산: form 모드는 입력 필드, editor 모드는 content 의 FROM 파싱.
-  const resolveBaseImage = () =>
-    mode === 'form' ? fields.baseImage.trim() : extractBaseImage(content);
-
-  // baseImage 비어있음 검증 (백엔드 NOT NULL + @NotBlank 대응). 비면 에러 표시 후 false.
-  // form 모드: 베이스 이미지 입력 카드 하단 인라인 에러. editor 모드: 인라인 영역이 없으므로 토스트.
   const validateBaseImage = (): boolean => {
     if (!resolveBaseImage()) {
       if (mode === 'form') {
-        setBaseImageError('베이스 이미지를 선택하세요.');
+        setBaseImageError(t('editor.baseImageRequired'));
       } else {
         toast({
-          title: 'FROM 명령이 필요합니다.',
-          description: 'Dockerfile 에 베이스 이미지를 지정하는 FROM 라인을 추가하세요.',
+          title: t('editor.fromRequiredTitle'),
+          description: t('editor.fromRequiredDesc'),
           variant: 'destructive',
         });
       }
@@ -787,11 +270,28 @@ export default function DockerfileEditorPage() {
     return true;
   };
 
+  /* ── 빌드 컨텍스트 Volume 자동 감지 (두 빌드 버튼 공유 — WEB-2) ── */
+
+  const resolveBuildContextVolume = () => {
+    if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
+      const volInstr = fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName);
+      setBuildContextVolume(volInstr?.volumeName || volumes[0].name);
+    }
+  };
+
+  /* ── 빌드 다이얼로그 정리 (WEB-2) ── */
+
+  const finishBuild = () => {
+    setShowBuildDialog(false);
+    setBuildAfterCreate(false);
+  };
+
+  /* ── Submit (저장) ── */
+
   const onSubmit = (data: FormData) => {
     if (!validateBaseImage()) return;
-    if (duplicateName) return; // 인라인 에러로 안내됨
+    if (duplicateName) return;
     if (isEdit && dockerfileId !== undefined) {
-      // Edit mode: show commit message dialog
       setPendingSaveData(data);
       setRevisionMessage('');
       setShowSaveDialog(true);
@@ -809,8 +309,8 @@ export default function DockerfileEditorPage() {
           onSuccess: () => navigate(`/dockerfiles?projectId=${selectedProjectId}`),
           onError: (e) =>
             toast({
-              title: 'Dockerfile 생성 실패',
-              description: (e as Error).message,
+              title: t('editor.createFailed'),
+              description: getErrorMessage(e),
               variant: 'destructive',
             }),
         },
@@ -840,41 +340,40 @@ export default function DockerfileEditorPage() {
         },
         onError: (e) =>
           toast({
-            title: '저장 실패',
-            description: (e as Error).message,
+            title: t('editor.saveFailed'),
+            description: getErrorMessage(e),
             variant: 'destructive',
           }),
       },
     );
   };
 
+  /* ── Build ── */
+
   const handleBuild = () => {
-    // 빌드 컨텍스트 Volume → PVC (해석 로직은 buildContextPvc 로 단일화)
-    const pvcName = buildContextPvc;
-
-    // 빌드 옵션(타깃/태그/컨텍스트)은 동일, 대상 Dockerfile 만 다르다.
-    // 프론트가 CR 을 직접 만들므로 저장된 Dockerfile 의 content/baseImage 등을 그대로 싣는다.
-    // 이미지 메타데이터는 Dockerfile content 의 LABEL 로 이미 들어가 있으므로 별도 전달 불필요.
-    // 분 → 초 변환 (범위 1~360분으로 클램프). 빈/비정상 입력은 기본 60분으로 처리.
-    const timeoutMinutes = Math.min(360, Math.max(1, buildTimeoutMinutes || 60));
-
     const buildOptions = {
       targetImage: targetImageRef,
       tag: targetTag,
-      buildTimeoutSeconds: timeoutMinutes * 60,
-      ...(pvcName ? { buildContextPvc: pvcName } : {}),
+      buildTimeoutSeconds: clampTimeoutMinutesToSeconds(buildTimeoutMinutes),
+      ...(buildContextPvc ? { buildContextPvc } : {}),
       ...(buildContextSubPath ? { buildContextSubPath } : {}),
     };
 
+    // EDIT·CREATE-성공 경로를 모두 라우팅하는 단일 클로저 (WEB-2)
     const startBuild = (df: Dockerfile) =>
       runBuildMutation.mutate(
         { dockerfile: df, ...buildOptions },
         {
           onSuccess: (build) => {
-            setShowBuildDialog(false);
-            setBuildAfterCreate(false);
+            finishBuild();
             navigate(`/builds/${build.namespace}/${build.name}`);
           },
+          onError: (e) =>
+            toast({
+              title: t('editor.buildFailed'),
+              description: getErrorMessage(e),
+              variant: 'destructive',
+            }),
         },
       );
 
@@ -884,7 +383,7 @@ export default function DockerfileEditorPage() {
       return;
     }
 
-    // CREATE 모드 ("생성 후 빌드"): 생성 → 성공 시 그 id 로 빌드.
+    // CREATE 모드 ("생성 후 빌드"): 생성 → 성공 시 그 결과로 빌드.
     const baseImage = resolveBaseImage();
     const data = getValues();
     createMutation.mutate(
@@ -896,94 +395,37 @@ export default function DockerfileEditorPage() {
         project: selectedProjectId,
       },
       {
-        onSuccess: (created) => {
+        onSuccess: (created) =>
           // 빌드가 실패해도 Dockerfile 은 이미 저장된 상태.
           runBuildMutation.mutate(
             { dockerfile: created, ...buildOptions },
             {
-            onSuccess: (build) => {
-              setShowBuildDialog(false);
-              setBuildAfterCreate(false);
-              navigate(`/builds/${build.namespace}/${build.name}`);
+              onSuccess: (build) => {
+                finishBuild();
+                navigate(`/builds/${build.namespace}/${build.name}`);
+              },
+              onError: () => {
+                finishBuild();
+                toast({
+                  title: t('editor.buildStartedButFailedTitle'),
+                  description: t('editor.buildStartedButFailedDesc'),
+                  variant: 'destructive',
+                });
+                navigate(`/dockerfiles?projectId=${selectedProjectId}`);
+              },
             },
-            onError: () => {
-              setShowBuildDialog(false);
-              setBuildAfterCreate(false);
-              toast({
-                title: 'Dockerfile 은 저장되었지만 빌드 시작에 실패했습니다.',
-                description: '목록 또는 상세 화면에서 빌드를 다시 시도할 수 있습니다.',
-                variant: 'destructive',
-              });
-              navigate(`/dockerfiles?projectId=${selectedProjectId}`);
-            },
-          });
-        },
+          ),
         onError: (e) => {
-          setShowBuildDialog(false);
-          setBuildAfterCreate(false);
+          finishBuild();
           toast({
-            title: 'Dockerfile 생성 실패',
-            description: (e as Error).message,
+            title: t('editor.createFailed'),
+            description: getErrorMessage(e),
             variant: 'destructive',
           });
         },
       },
     );
   };
-
-  const hasCopyInstruction =
-    fields.instructions.some((i) => i.type === 'COPY_VOLUME') || /^COPY\s/m.test(content);
-
-  // 모든 ENV 블록을 통틀어 2회 이상 등장하는 키 집합 (중복 경고용). 빈 키는 제외.
-  const duplicateEnvKeys = (() => {
-    const counts = new Map<string, number>();
-    for (const instr of fields.instructions) {
-      if (instr.type !== 'ENV') continue;
-      for (const p of instr.envPairs ?? []) {
-        const k = p.key.trim();
-        if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
-      }
-    }
-    return new Set([...counts.entries()].filter(([, c]) => c > 1).map(([k]) => k));
-  })();
-
-  // COPY 명령이 참조할 빌드 컨텍스트 Volume → PVC 해석
-  // (다이얼로그 선택 > COPY_VOLUME 명령의 volumeName > COPY 감지 시 첫 번째 Volume)
-  const buildContextVolName =
-    buildContextVolume ||
-    fields.instructions.find((i) => i.type === 'COPY_VOLUME' && i.volumeName)?.volumeName ||
-    (hasCopyInstruction && volumes.length > 0 ? volumes[0].name : '');
-  const buildContextPvc = volumes.find((v) => v.name === buildContextVolName)?.pvcName;
-  // COPY 가 있는데 컨텍스트 Volume(PVC)을 정하지 못하면 no-context 빌드가 되어 COPY 가
-  // 런타임에 알 수 없는 에러로 실패한다. 이를 막기 위해 빌드를 차단한다.
-  const buildContextMissing = hasCopyInstruction && !buildContextPvc;
-
-  // 빌드 대상 이미지: ImageHub + ImageName + Tag 조합으로 최종 레퍼런스를 구성한다.
-  const targetImageRepo = buildImageName.trim();
-  const targetTag = buildTag.trim() || 'latest';
-  const targetImageRef =
-    selectedImageHub && targetImageRepo
-      ? `${HARBOR_URL}/${selectedImageHub}/${targetImageRepo}`
-      : '';
-  const targetImageFull = targetImageRef ? `${targetImageRef}:${targetTag}` : '';
-  // 빌드 대상이 베이스 이미지와 완전히 동일하면 기존 이미지를 덮어쓰게 된다.
-  const overwritesBase =
-    !!targetImageFull && normalizeImageRef(targetImageFull) === normalizeImageRef(resolveBaseImage());
-
-  // 이름 중복 검사 (프론트 사전검증; 백엔드도 동일 검증 수행 — 권위).
-  // 범위: 같은 (project, 본인) 안의 동일 이름. 수정 중에는 자기 자신을 제외한다.
-  const trimmedName = (nameValue ?? '').trim();
-  const duplicateName =
-    !!trimmedName &&
-    (dfList ?? []).some(
-      (d) =>
-        d.project === selectedProjectId &&
-        d.username === username &&
-        d.name === trimmedName &&
-        d.id !== dockerfileId,
-    );
-
-  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   if (isEdit && isLoading) {
     return (
@@ -997,7 +439,7 @@ export default function DockerfileEditorPage() {
     <div className="mx-auto w-full max-w-[1400px] flex flex-col h-full">
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-xl font-semibold text-foreground">
-          {isEdit ? `Dockerfile ${t('common.edit')}` : 'Create Dockerfile'}
+          {isEdit ? t('editor.editTitle') : t('editor.createTitle')}
         </h1>
         {isEdit && existing?.latestVersion && (
           <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-mono font-medium text-muted-foreground">
@@ -1011,7 +453,7 @@ export default function DockerfileEditorPage() {
             onClick={() => navigate(`/dockerfiles/${dockerfileId}/revisions`)}
           >
             <History className="h-3.5 w-3.5" />
-            히스토리
+            {t('dockerfile.history')}
           </button>
         )}
       </div>
@@ -1019,11 +461,11 @@ export default function DockerfileEditorPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 flex-1">
         {/* 기본 설정 */}
         <section>
-          <h2 className="text-lg font-bold text-foreground mb-4">기본 설정</h2>
+          <h2 className="text-lg font-bold text-foreground mb-4">{t('editor.section.basic')}</h2>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5 max-w-2xl">
               <Label htmlFor="project">
-                Project <span className="text-destructive">*</span>
+                {t('editor.project')} <span className="text-destructive">*</span>
               </Label>
               {isEdit ? (
                 <Input id="project" value={selectedProjectId} disabled />
@@ -1047,27 +489,25 @@ export default function DockerfileEditorPage() {
             </div>
             <div className="flex flex-col gap-1.5 max-w-2xl">
               <Label htmlFor="name">
-                Dockerfile 이름 <span className="text-destructive">*</span>
+                {t('editor.nameRequired')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="name"
-                placeholder="예: pytorch-cuda-base"
+                placeholder={t('editor.namePlaceholder')}
                 aria-invalid={!!errors.name || duplicateName}
                 {...register('name')}
               />
               {errors.name ? (
                 <p className="text-sm text-destructive">{errors.name.message}</p>
               ) : duplicateName ? (
-                <p className="text-sm text-destructive">
-                  이미 같은 이름의 Dockerfile 이 있습니다. 다른 이름을 사용하세요.
-                </p>
+                <p className="text-sm text-destructive">{t('editor.duplicateName')}</p>
               ) : null}
             </div>
             <div className="flex flex-col gap-1.5 max-w-2xl">
-              <Label htmlFor="description">설명</Label>
+              <Label htmlFor="description">{t('editor.description')}</Label>
               <textarea
                 id="description"
-                placeholder="Dockerfile에 대한 설명이나 용도를 입력하세요. (선택 사항)"
+                placeholder={t('editor.descriptionPlaceholder')}
                 {...register('description')}
                 rows={3}
                 className="flex w-full rounded-md border border-input bg-transparent px-3.5 py-2.5 text-base text-foreground shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground/70 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] resize-y"
@@ -1084,21 +524,21 @@ export default function DockerfileEditorPage() {
         {/* Dockerfile 설정 */}
         <section className="flex flex-col flex-1">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-foreground">Dockerfile 설정</h2>
+            <h2 className="text-lg font-bold text-foreground">{t('editor.section.dockerfile')}</h2>
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 type="button"
-                onClick={switchToForm}
+                onClick={handleSwitchToForm}
                 className={`px-5 py-2 text-sm font-medium transition-colors ${mode === 'form' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               >
-                입력 폼
+                {t('editor.modeForm')}
               </button>
               <button
                 type="button"
                 onClick={() => setMode('editor')}
                 className={`px-5 py-2 text-sm font-medium transition-colors ${mode === 'editor' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               >
-                에디터
+                {t('editor.modeEditor')}
               </button>
             </div>
           </div>
@@ -1119,18 +559,18 @@ export default function DockerfileEditorPage() {
                 {/* Base Image */}
                 <div className="rounded-lg border border-border bg-card p-4">
                   <h3 className="text-base font-bold text-foreground mb-1">
-                    베이스 이미지 <span className="text-destructive">*</span>
+                    {t('editor.baseImage')} <span className="text-destructive">*</span>
                   </h3>
                   <p className="text-sm text-muted-foreground mb-3">
-                    빌드의 기반이 되는 Base 이미지를 선택해 주세요.
+                    {t('editor.baseImageDescription')}
                   </p>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="예: harbor.example.com/base/python:3.11-cuda12.1"
+                      placeholder={t('editor.baseImagePlaceholder')}
                       value={fields.baseImage}
                       onChange={(e) => {
                         const v = e.target.value;
-                        setFields((p) => ({ ...p, baseImage: v }));
+                        setBaseImage(v);
                         if (v.trim()) setBaseImageError('');
                       }}
                       aria-invalid={!!baseImageError}
@@ -1142,7 +582,7 @@ export default function DockerfileEditorPage() {
                       className="shrink-0"
                       onClick={() => setShowImageSelector(true)}
                     >
-                      가져오기
+                      {t('editor.baseImageImport')}
                     </Button>
                   </div>
                   {baseImageError && (
@@ -1154,9 +594,11 @@ export default function DockerfileEditorPage() {
                 <div className="rounded-lg border border-border bg-card p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h3 className="text-base font-bold text-foreground">명령어 블록</h3>
+                      <h3 className="text-base font-bold text-foreground">
+                        {t('editor.instructionBlocks')}
+                      </h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        RUN, COPY, ENV 명령어를 추가하고 순서를 변경할 수 있습니다.
+                        {t('editor.instructionBlocksDescription')}
                       </p>
                     </div>
                     <div className="relative">
@@ -1167,7 +609,7 @@ export default function DockerfileEditorPage() {
                         onClick={() => setShowAddInstr((v) => !v)}
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        명령어 추가
+                        {t('editor.addInstruction')}
                       </Button>
                       {showAddInstr && (
                         <>
@@ -1181,12 +623,21 @@ export default function DockerfileEditorPage() {
                                 key={opt.value}
                                 type="button"
                                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-base hover:bg-muted transition-colors text-left"
-                                onClick={() => addInstruction(opt.value)}
+                                onClick={() => {
+                                  addInstruction(opt.value);
+                                  setShowAddInstr(false);
+                                }}
                               >
                                 <span className="text-primary">{opt.icon}</span>
                                 <div>
-                                  <div className="font-medium text-foreground">{opt.label}</div>
-                                  <div className="text-xs text-muted-foreground/70">{opt.desc}</div>
+                                  <div className="font-medium text-foreground">
+                                    {opt.value === 'RUN' || opt.value === 'ENV'
+                                      ? opt.value
+                                      : t(opt.labelKey)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground/70">
+                                    {t(opt.descKey)}
+                                  </div>
                                 </div>
                               </button>
                             ))}
@@ -1198,7 +649,7 @@ export default function DockerfileEditorPage() {
 
                   {fields.instructions.length === 0 ? (
                     <div className="flex items-center justify-center py-8 text-sm text-muted-foreground/70 border border-dashed border-border rounded-md">
-                      "명령어 추가" 버튼으로 RUN, COPY, ENV 블록을 추가하세요.
+                      {t('editor.instructionsEmpty')}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
@@ -1208,7 +659,6 @@ export default function DockerfileEditorPage() {
                           instr={instr}
                           idx={idx}
                           total={fields.instructions.length}
-                          volumes={volumes}
                           namespace={selectedProjectId}
                           duplicateEnvKeys={duplicateEnvKeys}
                           onUpdate={(patch) => updateInstruction(instr.id, patch)}
@@ -1222,7 +672,9 @@ export default function DockerfileEditorPage() {
 
                 {/* Bottom: WORKDIR, EXPOSE, CMD */}
                 <div className="rounded-lg border border-border bg-card p-4">
-                  <h3 className="text-base font-bold text-foreground mb-3">실행 설정</h3>
+                  <h3 className="text-base font-bold text-foreground mb-3">
+                    {t('editor.execSettings')}
+                  </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
                       <Label>WORKDIR</Label>
@@ -1233,17 +685,17 @@ export default function DockerfileEditorPage() {
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <Label>EXPOSE (포트)</Label>
+                      <Label>{t('editor.exposePortLabel')}</Label>
                       <Input
-                        placeholder="예: 8888 8080"
+                        placeholder={t('editor.exposePortPlaceholder')}
                         value={fields.exposePorts}
                         onChange={(e) => setFields((p) => ({ ...p, exposePorts: e.target.value }))}
                       />
                     </div>
                     <div className="col-span-2 flex flex-col gap-1.5">
-                      <Label>CMD (실행 명령)</Label>
+                      <Label>{t('editor.cmdLabel')}</Label>
                       <Input
-                        placeholder="예: bash"
+                        placeholder={t('editor.cmdPlaceholder')}
                         value={fields.cmd}
                         onChange={(e) => setFields((p) => ({ ...p, cmd: e.target.value }))}
                       />
@@ -1255,7 +707,7 @@ export default function DockerfileEditorPage() {
               {/* Right: Preview */}
               <div className="flex-1 flex flex-col">
                 <span className="text-sm font-medium text-muted-foreground mb-2">
-                  Dockerfile 미리보기
+                  {t('editor.preview')}
                 </span>
                 <div className="flex-1 min-h-[400px] border border-border rounded-lg overflow-hidden">
                   <Editor
@@ -1308,115 +760,13 @@ export default function DockerfileEditorPage() {
         {mode === 'form' && (
           <>
             <hr className="border-border" />
-
-            {/* 이미지 메타데이터 (OCI LABEL) — Dockerfile content 의 LABEL 로 반영됨 */}
-            <section>
-              {/* 헤더 토글 버튼 */}
-              <button
-                type="button"
-                onClick={() => setMetaExpanded((v) => !v)}
-                className="flex items-center gap-2 text-lg font-bold text-foreground mb-4 hover:text-primary transition-colors"
-              >
-                {metaExpanded ? (
-                  <ChevronDown className="h-5 w-5" />
-                ) : (
-                  <ChevronRight className="h-5 w-5" />
-                )}
-                이미지 메타데이터
-              </button>
-
-              {metaExpanded && (
-                <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-4">
-                  {/* 표준 메타데이터 필드 (항상 노출) — 좌우 2열 배치 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                    {STANDARD_META.map((m) => (
-                      <div key={m.key} className="flex flex-col gap-1.5">
-                        <Label>{m.label}</Label>
-                        <Input
-                          value={fields.labels[m.key]}
-                          onChange={(e) => updateStandardLabel(m.key, e.target.value)}
-                          placeholder={
-                            m.key === 'authors' ? username || m.placeholder : m.placeholder
-                          }
-                          className="h-10 text-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* 커스텀 라벨 (추가 입력) */}
-                  <div className="flex flex-col gap-2 pt-2 border-t border-border">
-                    <Label>커스텀 라벨</Label>
-                    {fields.labels.custom.map((pair, idx) => {
-                      const k = pair.key.trim();
-                      const isManaged = !!k && MANAGED_LABEL_KEYS.has(k);
-                      const isDup =
-                        !!k && fields.labels.custom.filter((p) => p.key.trim() === k).length > 1;
-                      return (
-                        <div key={idx} className="flex flex-col gap-1">
-                          <div className="flex gap-2 items-center">
-                            <Input
-                              placeholder="Key (예: com.example.team)"
-                              value={pair.key}
-                              aria-invalid={isManaged || isDup}
-                              onChange={(e) =>
-                                updateLabel({
-                                  custom: fields.labels.custom.map((p, i) =>
-                                    i === idx ? { ...p, key: e.target.value } : p,
-                                  ),
-                                })
-                              }
-                              className="flex-1 h-10 text-sm font-mono"
-                            />
-                            <span className="text-muted-foreground/70 text-sm">=</span>
-                            <Input
-                              placeholder="Value"
-                              value={pair.value}
-                              onChange={(e) =>
-                                updateLabel({
-                                  custom: fields.labels.custom.map((p, i) =>
-                                    i === idx ? { ...p, value: e.target.value } : p,
-                                  ),
-                                })
-                              }
-                              className="flex-1 h-10 text-sm font-mono"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateLabel({
-                                  custom: fields.labels.custom.filter((_, i) => i !== idx),
-                                })
-                              }
-                              className="p-1.5 rounded hover:bg-muted text-destructive shrink-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                          {(isManaged || isDup) && (
-                            <p className="text-xs text-warning pl-0.5">
-                              {isManaged
-                                ? '이 키는 Version/Authors/License/URL/Documentation/title 로 이미 관리됩니다. 같은 키를 넣으면 마지막 값으로 덮어써집니다.'
-                                : '중복된 키입니다. 같은 키가 여러 개면 마지막 값만 적용됩니다.'}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addCustomLabel}
-                      className="self-start"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      추가
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </section>
+            <LabelEditor
+              labels={fields.labels}
+              username={username || ''}
+              expanded={metaExpanded}
+              onToggleExpand={() => setMetaExpanded((v) => !v)}
+              onChange={updateLabels}
+            />
           </>
         )}
 
@@ -1427,7 +777,7 @@ export default function DockerfileEditorPage() {
             variant="outline"
             onClick={() => navigate(`/dockerfiles?projectId=${selectedProjectId}`)}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           {isEdit && (
             <Button
@@ -1435,18 +785,12 @@ export default function DockerfileEditorPage() {
               variant="outline"
               onClick={() => {
                 setBuildAfterCreate(false);
-                // COPY가 있고 볼륨 미선택 시 자동 감지
-                if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
-                  const volInstr = fields.instructions.find(
-                    (i) => i.type === 'COPY_VOLUME' && i.volumeName,
-                  );
-                  setBuildContextVolume(volInstr?.volumeName || volumes[0].name);
-                }
+                resolveBuildContextVolume();
                 setShowBuildDialog(true);
               }}
               disabled={warnings.length > 0}
             >
-              <Play className="h-4 w-4" /> 빌드 실행
+              <Play className="h-4 w-4" /> {t('build.run')}
             </Button>
           )}
           {!isEdit && (
@@ -1455,230 +799,75 @@ export default function DockerfileEditorPage() {
               variant="outline"
               disabled={isSaving || warnings.length > 0 || duplicateName}
               onClick={async () => {
-                // onSubmit 의 form-mode 가드와 동일한 검증: 이름 + 비어있지 않은 baseImage + 이름 중복.
                 const nameValid = await trigger('name');
                 if (!nameValid || !validateBaseImage() || duplicateName) return;
-                // COPY가 있고 볼륨 미선택 시 자동 감지
-                if (!buildContextVolume && hasCopyInstruction && volumes.length > 0) {
-                  const volInstr = fields.instructions.find(
-                    (i) => i.type === 'COPY_VOLUME' && i.volumeName,
-                  );
-                  setBuildContextVolume(volInstr?.volumeName || volumes[0].name);
-                }
+                resolveBuildContextVolume();
                 setBuildAfterCreate(true);
                 setShowBuildDialog(true);
               }}
             >
-              <Play className="h-4 w-4" /> 생성 후 빌드
+              <Play className="h-4 w-4" /> {t('editor.buildAfterCreate')}
             </Button>
           )}
           <Button type="submit" disabled={isSaving || duplicateName}>
-            {isEdit ? t('common.save') : 'Create'}
+            {isEdit ? t('common.save') : t('common.create')}
           </Button>
         </div>
       </form>
 
-      {/* Save (Commit Message) Dialog */}
-      <Dialog open={showSaveDialog} onOpenChange={(open) => { if (!open) { setShowSaveDialog(false); setPendingSaveData(null); } }}>
-        <DialogContent size="md">
-          <DialogHeader>
-            <DialogTitle>변경 사항 저장</DialogTitle>
-            <DialogDescription>
-              새 리비전이 생성됩니다. 변경 내용을 설명하는 메시지를 입력하세요. (선택)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-2 py-2">
-            <Label>리비전 메시지</Label>
-            <textarea
-              value={revisionMessage}
-              onChange={(e) => setRevisionMessage(e.target.value)}
-              placeholder="예: CUDA 버전 업그레이드, pip 패키지 추가"
-              rows={2}
-              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-ring focus:ring-ring/50 focus:ring-[3px] resize-y"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowSaveDialog(false); setPendingSaveData(null); }}>
-              취소
-            </Button>
-            <Button onClick={handleConfirmSave} disabled={updateMutation.isPending}>
-              저장
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SaveRevisionDialog
+        open={showSaveDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowSaveDialog(false);
+            setPendingSaveData(null);
+          }
+        }}
+        message={revisionMessage}
+        onMessageChange={setRevisionMessage}
+        onConfirm={handleConfirmSave}
+        saving={updateMutation.isPending}
+      />
 
-      {/* Build Dialog */}
-      <Dialog
+      <BuildDialog
         open={showBuildDialog}
         onOpenChange={(open) => {
           setShowBuildDialog(open);
-          if (!open) setBuildAfterCreate(false); // 닫으면 "생성 후 빌드" 의도 초기화
+          if (!open) setBuildAfterCreate(false);
         }}
-      >
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>{buildAfterCreate ? '생성 후 빌드' : t('build.run')}</DialogTitle>
-            <DialogDescription>빌드할 이미지 이름과 태그를 입력하세요.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-1">
-            {/* ImageHub / ImageName / Tag */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>ImageHub</Label>
-                <div className="relative">
-                  <select
-                    value={selectedImageHub}
-                    onChange={(e) => setSelectedImageHub(e.target.value)}
-                    className="flex h-11 w-full rounded-md border border-input bg-card px-3.5 py-1 text-base appearance-none outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px] cursor-pointer"
-                  >
-                    {imageHubs.map((hub) => (
-                      <option key={hub} value={hub}>
-                        {hub}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Image Name</Label>
-                <Input
-                  value={buildImageName}
-                  onChange={(e) => {
-                    buildImageNameDirty.current = true;
-                    setBuildImageName(e.target.value);
-                  }}
-                  placeholder="예: pytorch-cuda-base"
-                  className="h-11 font-mono text-sm"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>{t('build.tag')}</Label>
-                <Input
-                  value={buildTag}
-                  onChange={(e) => setBuildTag(e.target.value)}
-                  placeholder={t('build.tagPlaceholder')}
-                  className="h-11 font-mono text-sm"
-                />
-              </div>
-            </div>
-
-            {/* 빌드 대상 이미지 미리보기 */}
-            <div className="flex flex-col gap-1.5">
-              <Label>{t('build.targetImage')}</Label>
-              <div className="rounded-md border border-input bg-muted/40 px-3.5 py-2.5 font-mono text-sm break-all">
-                {targetImageFull ? (
-                  <>
-                    <span className="text-foreground">{targetImageRef}</span>
-                    <span className="text-primary font-medium">:{targetTag}</span>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground/70">
-                    ImageHub와 이미지 이름을 입력하면 미리보기가 표시됩니다.
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 빌드 제한 시간 (분) */}
-            <div className="flex flex-col gap-1.5">
-              <Label>{t('build.timeout')}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={360}
-                value={buildTimeoutMinutes}
-                onChange={(e) => setBuildTimeoutMinutes(Number(e.target.value))}
-                className="h-11 w-32"
-              />
-              <p className="text-sm text-muted-foreground">{t('build.timeoutHelp')}</p>
-            </div>
-
-            {/* 베이스 이미지와 동일 → 덮어쓰기 경고 */}
-            {overwritesBase && (
-              <div className="flex items-start gap-2 rounded-md border border-warning bg-warning/10 p-3">
-                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-                <div className="text-sm text-foreground">
-                  <p className="font-medium">기존 이미지를 덮어씁니다</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    빌드 대상이 베이스 이미지(
-                    <span className="font-mono text-foreground break-all">{resolveBaseImage()}</span>
-                    )와 동일합니다. 빌드가 성공하면 기존 이미지가 이 빌드 결과로 교체됩니다.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* 빌드 컨텍스트 (COPY 사용 시) */}
-            {hasCopyInstruction && (
-              <>
-                <hr className="border-border" />
-                <div className="flex flex-col gap-1.5">
-                  <Label>빌드 컨텍스트 Volume</Label>
-                  <p className="text-sm text-muted-foreground">
-                    COPY 명령어에서 참조하는 파일이 있는 Volume을 선택하세요.
-                  </p>
-                  <div className="relative">
-                    <select
-                      value={buildContextVolume}
-                      onChange={(e) => setBuildContextVolume(e.target.value)}
-                      className="flex h-11 w-full rounded-md border border-input bg-card px-3.5 py-1 text-base appearance-none outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px] cursor-pointer"
-                    >
-                      <option value="">선택 안함</option>
-                      {volumes.map((v) => (
-                        <option key={v.name} value={v.name}>
-                          {v.name} ({v.pvcName})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
-                  </div>
-                  {buildContextMissing && (
-                    <p className="text-sm text-destructive">
-                      COPY 명령이 있는데 빌드 컨텍스트 Volume이 선택되지 않았습니다. 파일이 있는
-                      Volume을 선택해야 빌드할 수 있습니다. (선택하지 않으면 볼륨 데이터 없이
-                      빌드되어 COPY 가 실패합니다)
-                    </p>
-                  )}
-                </div>
-                {buildContextVolume && (
-                  <div className="flex flex-col gap-1.5">
-                    <Label>서브 경로 (선택)</Label>
-                    <Input
-                      value={buildContextSubPath}
-                      onChange={(e) => setBuildContextSubPath(e.target.value)}
-                      placeholder="예: /my-project (미지정 시 볼륨 루트)"
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowBuildDialog(false);
-                setBuildAfterCreate(false);
-              }}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={handleBuild}
-              disabled={
-                runBuildMutation.isPending ||
-                createMutation.isPending ||
-                !targetImageRef ||
-                buildContextMissing
-              }
-            >
-              <Play className="h-4 w-4" /> {buildAfterCreate ? '생성 후 빌드' : t('build.run')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        buildAfterCreate={buildAfterCreate}
+        imageHubs={imageHubs}
+        selectedImageHub={selectedImageHub}
+        onSelectImageHub={setSelectedImageHub}
+        imageName={buildImageName}
+        onImageNameChange={(v) => {
+          buildImageNameDirty.current = true;
+          setBuildImageName(v);
+        }}
+        tag={buildTag}
+        onTagChange={setBuildTag}
+        targetImageRef={targetImageRef}
+        targetImageFull={targetImageFull}
+        targetTag={targetTag}
+        timeoutMinutes={buildTimeoutMinutes}
+        onTimeoutMinutesChange={setBuildTimeoutMinutes}
+        overwritesBase={overwritesBase}
+        baseImage={resolveBaseImage()}
+        hasCopyInstruction={hasCopyInstruction}
+        volumes={volumes}
+        buildContextVolume={buildContextVolume}
+        onBuildContextVolumeChange={setBuildContextVolume}
+        buildContextSubPath={buildContextSubPath}
+        onBuildContextSubPathChange={setBuildContextSubPath}
+        buildContextMissing={buildContextMissing}
+        onConfirm={handleBuild}
+        confirmDisabled={
+          runBuildMutation.isPending ||
+          createMutation.isPending ||
+          !targetImageRef ||
+          buildContextMissing
+        }
+      />
 
       {/* Image Selector */}
       <ImageSelector
@@ -1686,206 +875,10 @@ export default function DockerfileEditorPage() {
         open={showImageSelector}
         onOpenChange={setShowImageSelector}
         onSelect={(imageRef) => {
-          setFields((p) => ({ ...p, baseImage: imageRef }));
+          setBaseImage(imageRef);
           if (imageRef.trim()) setBaseImageError('');
         }}
       />
-    </div>
-  );
-}
-
-/* ── Instruction Block Component ── */
-
-// AIPubVolume type used via volumes prop
-
-function InstructionBlock({
-  instr,
-  idx,
-  total,
-  namespace,
-  duplicateEnvKeys,
-  onUpdate,
-  onRemove,
-  onMove,
-}: {
-  instr: Instruction;
-  idx: number;
-  total: number;
-  volumes?: unknown;
-  namespace: string;
-  duplicateEnvKeys?: Set<string>;
-  onUpdate: (patch: Partial<Instruction>) => void;
-  onRemove: () => void;
-  onMove: (dir: -1 | 1) => void;
-}) {
-  const [showBrowser, setShowBrowser] = useState(false);
-  const typeLabel = instrTypeOptions.find((o) => o.value === instr.type)?.label ?? instr.type;
-  const typeIcon = instrTypeOptions.find((o) => o.value === instr.type)?.icon;
-
-  const typeBgColor = {
-    RUN: 'border-l-blue-400',
-    COPY_VOLUME: 'border-l-green-400',
-    ENV: 'border-l-purple-400',
-  }[instr.type];
-
-  return (
-    <div className={`rounded-md border border-border bg-muted/30 p-3.5 border-l-4 ${typeBgColor}`}>
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          <span className="text-primary">{typeIcon}</span>
-          <span className="text-sm font-bold text-foreground">{typeLabel}</span>
-          <span className="text-xs text-muted-foreground/70">#{idx + 1}</span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            disabled={idx === 0}
-            onClick={() => onMove(-1)}
-            className="p-1 rounded hover:bg-card disabled:opacity-30 text-muted-foreground"
-          >
-            <ChevronUp className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            disabled={idx === total - 1}
-            onClick={() => onMove(1)}
-            className="p-1 rounded hover:bg-card disabled:opacity-30 text-muted-foreground"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="p-1 rounded hover:bg-card text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Type-specific fields */}
-      {instr.type === 'RUN' && (
-        <Input
-          placeholder="예: apt-get update && apt-get install -y git"
-          value={instr.command ?? ''}
-          onChange={(e) => onUpdate({ command: e.target.value })}
-          className="text-sm font-mono"
-        />
-      )}
-
-      {instr.type === 'COPY_VOLUME' && (
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">AIPub Volume / 파일 경로</span>
-              <div className="flex gap-1.5">
-                <Input
-                  placeholder="Volume에서 파일을 선택하거나 업로드하세요"
-                  value={
-                    instr.volumeName && instr.volumePath
-                      ? `${instr.volumeName}:${instr.volumePath}`
-                      : ''
-                  }
-                  readOnly
-                  className="h-10 text-sm flex-1 bg-muted/30"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 shrink-0"
-                  onClick={() => setShowBrowser(true)}
-                >
-                  선택 / 업로드
-                </Button>
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-2 items-center">
-            <Copy className="h-4 w-4 text-muted-foreground/70 shrink-0" />
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">대상 경로</span>
-              <Input
-                placeholder="/workspace/"
-                value={instr.volumeDest ?? ''}
-                onChange={(e) => onUpdate({ volumeDest: e.target.value })}
-                className="h-10 text-sm"
-              />
-            </div>
-          </div>
-          <VolumeBrowser
-            namespace={namespace}
-            open={showBrowser}
-            onOpenChange={setShowBrowser}
-            onSelect={(volName, filePath) =>
-              onUpdate({ volumeName: volName, volumePath: filePath })
-            }
-          />
-        </div>
-      )}
-
-      {instr.type === 'ENV' && (
-        <div className="flex flex-col gap-2">
-          {(instr.envPairs ?? []).map((pair, pidx) => {
-            const pairs = instr.envPairs ?? [];
-            const updatePair = (patch: Partial<EnvPair>) => {
-              const next = pairs.map((p, i) => (i === pidx ? { ...p, ...patch } : p));
-              onUpdate({ envPairs: next });
-            };
-            const removePair = () => {
-              const next = pairs.filter((_, i) => i !== pidx);
-              onUpdate({ envPairs: next });
-            };
-            const dupKey = !!pair.key.trim() && !!duplicateEnvKeys?.has(pair.key.trim());
-            return (
-              <div key={pidx} className="flex flex-col gap-1">
-                <div className="flex gap-2 items-center">
-                  <Input
-                    placeholder="Key"
-                    value={pair.key}
-                    aria-invalid={dupKey}
-                    onChange={(e) => updatePair({ key: e.target.value })}
-                    className="flex-1 h-10 text-sm font-mono"
-                  />
-                  <span className="text-muted-foreground/70 text-sm">=</span>
-                  <Input
-                    placeholder="Value"
-                    value={pair.value}
-                    onChange={(e) => updatePair({ value: e.target.value })}
-                    className="flex-1 h-10 text-sm font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={removePair}
-                    disabled={pairs.length <= 1}
-                    className="p-1.5 rounded hover:bg-card text-destructive disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-                {dupKey && (
-                  <p className="text-xs text-warning pl-0.5">
-                    중복된 ENV 키입니다. 같은 키가 여러 개면 마지막 값만 적용됩니다.
-                  </p>
-                )}
-              </div>
-            );
-          })}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={() => {
-              const next = [...(instr.envPairs ?? []), { key: '', value: '' }];
-              onUpdate({ envPairs: next });
-            }}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            key-value 추가
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

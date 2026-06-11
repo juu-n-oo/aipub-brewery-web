@@ -1,4 +1,5 @@
-import { apiClient } from '@/lib/api-client';
+import { apiClient, k8sClient } from '@/lib/api-client';
+import { API_BASE } from '@/lib/env';
 import type {
   UserAuthorityReview,
   Project,
@@ -6,76 +7,38 @@ import type {
   VolumeListResponse,
   BrowseResponse,
 } from '@/types/k8s';
-import type { ImageBuildCr, ImageBuildList } from '@/types/build';
+import type { ImageBuildCr, ImageBuildCrInput, ImageBuildList } from '@/types/build';
 
 const IMAGEBUILD_API = '/apis/aipub.ten1010.io/v1alpha1';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-const K8S_PROXY = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
-const API_BASE = `${API_BASE_URL}/api/v1alpha1`;
-
-async function k8sRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${K8S_PROXY}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-
-  if (response.status === 401) {
-    window.location.href = '/welcome';
-    throw new Error('Unauthorized');
-  }
-
-  if (!response.ok) {
-    throw new Error(`K8s API error: ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
-}
 
 export const k8sApi = {
   /** 유저 권한 분석 — 접근 가능한 프로젝트 목록 확인 */
   getUserAuthority: (username: string) =>
-    k8sRequest<UserAuthorityReview>(
-      '/apis/aipub.ten1010.io/v1alpha1/userauthorityreviews',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          apiVersion: 'aipub.ten1010.io/v1alpha1',
-          kind: 'UserAuthorityReview',
-          metadata: { name: username },
-          spec: { resources: ['/namespaces'] },
-        }),
-      },
-    ),
+    k8sClient.post<UserAuthorityReview>('/apis/aipub.ten1010.io/v1alpha1/userauthorityreviews', {
+      apiVersion: 'aipub.ten1010.io/v1alpha1',
+      kind: 'UserAuthorityReview',
+      metadata: { name: username },
+      spec: { resources: ['/namespaces'] },
+    }),
 
   /** Project 단건 조회 */
   getProject: (name: string) =>
-    k8sRequest<Project>(
-      `/apis/project.aipub.ten1010.io/v1alpha1/projects/${name}`,
-    ),
+    k8sClient.get<Project>(`/apis/project.aipub.ten1010.io/v1alpha1/projects/${name}`),
 
   /** ImageBuild CR 목록 조회 (namespace 단위) */
   listImageBuilds: (namespace: string) =>
-    k8sRequest<ImageBuildList>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds`),
+    k8sClient.get<ImageBuildList>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds`),
 
   /** ImageBuild CR 생성 — 프론트가 k8sproxy 로 직접 생성한다(백엔드 우회). 사용자 AIPub 신원의 RBAC 필요. */
-  createImageBuild: (namespace: string, cr: unknown) =>
-    k8sRequest<ImageBuildCr>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds`, {
-      method: 'POST',
-      body: JSON.stringify(cr),
-    }),
+  createImageBuild: (namespace: string, cr: ImageBuildCrInput) =>
+    k8sClient.post<ImageBuildCr>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds`, cr),
 
   /** ImageBuild CR 단건 조회 */
   getImageBuild: (namespace: string, name: string) =>
-    k8sRequest<ImageBuildCr>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds/${name}`),
+    k8sClient.get<ImageBuildCr>(`${IMAGEBUILD_API}/namespaces/${namespace}/imagebuilds/${name}`),
 
   /** Volume 목록 조회 (Backend API) */
-  getVolumes: (namespace: string) =>
-    apiClient.get<VolumeListResponse>(`/volumes/${namespace}`),
+  getVolumes: (namespace: string) => apiClient.get<VolumeListResponse>(`/volumes/${namespace}`),
 
   /** Volume 파일 브라우저 (Backend API) */
   getVolumeFiles: (namespace: string, volumeName: string, path: string = '/') =>
@@ -130,31 +93,19 @@ export const k8sApi = {
 
   /** ImageReview — 리포지토리 목록 조회 */
   getRepositories: (imgHub: string) =>
-    k8sRequest<ImageReview>(
-      '/apis/project.aipub.ten1010.io/v1alpha1/imagereviews',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          apiVersion: 'project.aipub.ten1010.io/v1alpha1',
-          kind: 'ImageReview',
-          metadata: { name: imgHub },
-          spec: { imgHub },
-        }),
-      },
-    ),
+    k8sClient.post<ImageReview>('/apis/project.aipub.ten1010.io/v1alpha1/imagereviews', {
+      apiVersion: 'project.aipub.ten1010.io/v1alpha1',
+      kind: 'ImageReview',
+      metadata: { name: imgHub },
+      spec: { imgHub },
+    }),
 
   /** ImageReview — 이미지 태그 목록 조회 */
   getImageTags: (imgHub: string, repo: string) =>
-    k8sRequest<ImageReview>(
-      '/apis/project.aipub.ten1010.io/v1alpha1/imagereviews',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          apiVersion: 'project.aipub.ten1010.io/v1alpha1',
-          kind: 'ImageReview',
-          metadata: { name: imgHub },
-          spec: { imgHub, repo },
-        }),
-      },
-    ),
+    k8sClient.post<ImageReview>('/apis/project.aipub.ten1010.io/v1alpha1/imagereviews', {
+      apiVersion: 'project.aipub.ten1010.io/v1alpha1',
+      kind: 'ImageReview',
+      metadata: { name: imgHub },
+      spec: { imgHub, repo },
+    }),
 };
