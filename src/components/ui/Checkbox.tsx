@@ -11,8 +11,8 @@ function Checkbox({ className, ...props }: ComponentProps<typeof CheckboxPrimiti
         'peer flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input shadow-xs transition-shadow outline-none',
         'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
         'data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground',
-        'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
-        'disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 dark:data-[state=checked]:bg-primary',
+        'aria-invalid:ring-destructive/20 aria-invalid:border-destructive',
+        'disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}

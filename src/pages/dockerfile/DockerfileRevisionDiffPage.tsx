@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/Select';
-import { useTheme } from '@/hooks/useTheme';
 
 export default function DockerfileRevisionDiffPage() {
   const { id, v1, v2 } = useParams<{ id: string; v1: string; v2: string }>();
@@ -25,7 +24,6 @@ export default function DockerfileRevisionDiffPage() {
   const version1 = v1 ? Number(v1) : undefined;
   const version2 = v2 ? Number(v2) : undefined;
   const navigate = useNavigate();
-  const { theme } = useTheme();
 
   const { data: dockerfile } = useDockerfile(dockerfileId);
   const { data: rev1, isLoading: l1 } = useDockerfileRevision(dockerfileId, version1);
@@ -167,7 +165,7 @@ export default function DockerfileRevisionDiffPage() {
           original={rev1.content}
           modified={rev2.content}
           language="dockerfile"
-          theme={theme === 'dark' ? 'vs-dark' : 'light'}
+          theme="light"
           options={{
             readOnly: true,
             renderSideBySide: true,

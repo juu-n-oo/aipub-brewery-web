@@ -1,24 +1,14 @@
 import { createContext } from 'react';
 
-export type Theme = 'dark' | 'light' | 'system';
-export type ColorTheme = 'default' | 'blue' | 'green' | 'orange' | 'yellow' | 'violet';
-
+// 다크모드는 제거됨 — 앱은 항상 라이트 테마로 동작한다.
+// Sonner 토스트 / Monaco 에디터가 theme 값을 참조하므로 컨텍스트 자체는 유지한다.
 export type ThemeProviderState = {
-  /** 적용된 실제 테마 (system 은 resolve 됨) */
-  theme: 'light' | 'dark';
-  /** 사용자가 선택한 모드 (system 포함) */
-  themePreference: Theme;
-  setTheme: (theme: Theme) => void;
-  colorTheme: ColorTheme;
-  setColorTheme: (colorTheme: ColorTheme) => void;
+  /** 적용된 테마 (항상 'light') */
+  theme: 'light';
 };
 
 export const initialThemeState: ThemeProviderState = {
   theme: 'light',
-  themePreference: 'system',
-  setTheme: () => null,
-  colorTheme: 'default',
-  setColorTheme: () => null,
 };
 
 export const ThemeProviderContext = createContext<ThemeProviderState>(initialThemeState);

@@ -29,7 +29,6 @@ import {
 import { useRunBuild } from '@/hooks/useBuilds';
 import type { Dockerfile } from '@/types/dockerfile';
 import { useAuth } from '@/hooks/useAuthContext';
-import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
 import { useProject, useVolumes } from '@/hooks/useK8s';
 import { validateDockerfile, type DockerfileWarning } from '@/lib/dockerfile-validator';
@@ -514,9 +513,8 @@ export default function DockerfileEditorPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { projects, username, isAdmin } = useAuth();
-  const { theme } = useTheme();
   const { toast } = useToast();
-  const monacoTheme = theme === 'dark' ? 'vs-dark' : 'vs-light';
+  const monacoTheme = 'vs-light';
   const dockerfileId = idParam ? Number(idParam) : undefined;
   const isEdit = dockerfileId !== undefined;
 

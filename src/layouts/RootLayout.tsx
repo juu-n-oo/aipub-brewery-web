@@ -11,12 +11,9 @@ import {
   PanelLeft,
   AlertCircle,
   LogOut,
-  Sun,
-  Moon,
   Check,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/hooks/useAuthContext';
-import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';
 import { Separator } from '@/components/ui/Separator';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/Tooltip';
@@ -116,22 +113,6 @@ function NoProjectGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === 'dark';
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="text-muted-foreground"
-      title={isDark ? 'Light mode' : 'Dark mode'}
-    >
-      {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-    </Button>
-  );
-}
-
 function LanguageMenu() {
   const { i18n } = useTranslation();
   const langs: { code: string; label: string }[] = [
@@ -199,7 +180,6 @@ function InnerLayout() {
           <span className="text-[17px] font-bold tracking-tight text-foreground">Dockerizer</span>
         </NavLink>
         <div className="flex items-center gap-0.5">
-          <ThemeToggle />
           <LanguageMenu />
           <ProfileMenu />
         </div>
