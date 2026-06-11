@@ -30,6 +30,8 @@
     "targetImage": "Target Image",
     "tag": "Tag",
     "tagPlaceholder": "e.g. v1.0.0",
+    "timeout": "Timeout (min)",
+    "timeoutHelp": "The build is aborted if it exceeds this time. Increase it for heavy images that legitimately take long to build.",
     "status": "Build Status",
     "log": "Build Log",
     "logUnavailable": "Logs are not available",

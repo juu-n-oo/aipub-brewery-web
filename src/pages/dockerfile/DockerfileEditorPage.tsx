@@ -548,6 +548,9 @@ export default function DockerfileEditorPage() {
   const [selectedImageHub, setSelectedImageHub] = useState('');
   const [buildContextVolume, setBuildContextVolume] = useState('');
   const [buildContextSubPath, setBuildContextSubPath] = useState('');
+  // 빌드 제한 시간(분, 사용자 친화 단위). 전송 시 초로 변환해 CR spec.buildTimeoutSeconds 로 보낸다.
+  // 기본 60분(컨트롤러 기본값과 동일), 허용 범위 1~360분.
+  const [buildTimeoutMinutes, setBuildTimeoutMinutes] = useState(60);
   // 이미지 메타데이터(OCI 라벨)는 fields.labels 에 보관 → Dockerfile content 의 LABEL 로 생성/파싱된다.
   // metaExpanded: 메타데이터 섹션 헤더 토글 상태. 펼치면 표준 필드(Version/Author/...)가 기본 노출된다.
   const [metaExpanded, setMetaExpanded] = useState(false);
@@ -852,9 +855,13 @@ export default function DockerfileEditorPage() {
     // 빌드 옵션(타깃/태그/컨텍스트)은 동일, 대상 Dockerfile 만 다르다.
     // 프론트가 CR 을 직접 만들므로 저장된 Dockerfile 의 content/baseImage 등을 그대로 싣는다.
     // 이미지 메타데이터는 Dockerfile content 의 LABEL 로 이미 들어가 있으므로 별도 전달 불필요.
+    // 분 → 초 변환 (범위 1~360분으로 클램프). 빈/비정상 입력은 기본 60분으로 처리.
+    const timeoutMinutes = Math.min(360, Math.max(1, buildTimeoutMinutes || 60));
+
     const buildOptions = {
       targetImage: targetImageRef,
       tag: targetTag,
+      buildTimeoutSeconds: timeoutMinutes * 60,
       ...(pvcName ? { buildContextPvc: pvcName } : {}),
       ...(buildContextSubPath ? { buildContextSubPath } : {}),
     };
@@ -1572,6 +1579,20 @@ export default function DockerfileEditorPage() {
                   </span>
                 )}
               </div>
+            </div>
+
+            {/* 빌드 제한 시간 (분) */}
+            <div className="flex flex-col gap-1.5">
+              <Label>{t('build.timeout')}</Label>
+              <Input
+                type="number"
+                min={1}
+                max={360}
+                value={buildTimeoutMinutes}
+                onChange={(e) => setBuildTimeoutMinutes(Number(e.target.value))}
+                className="h-11 w-32"
+              />
+              <p className="text-sm text-muted-foreground">{t('build.timeoutHelp')}</p>
             </div>
 
             {/* 베이스 이미지와 동일 → 덮어쓰기 경고 */}

@@ -34,6 +34,8 @@ export interface RunBuildInput {
   pushSecretRef?: string;
   buildContextPvc?: string;
   buildContextSubPath?: string;
+  /** 빌드 제한 시간(초). CR spec.buildTimeoutSeconds 로 전달. 미지정 시 컨트롤러 기본값(3600s) 적용. */
+  buildTimeoutSeconds?: number;
 }
 
 /* ── k8s ImageBuild CR (k8sproxy 직접 조회용 raw 타입) ── */

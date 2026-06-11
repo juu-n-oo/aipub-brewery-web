@@ -30,6 +30,8 @@
     "targetImage": "대상 이미지",
     "tag": "태그",
     "tagPlaceholder": "예: v1.0.0",
+    "timeout": "제한 시간 (분)",
+    "timeoutHelp": "이 시간을 넘기면 빌드가 중단됩니다. 이미지가 무거워 정상적으로 오래 걸리면 늘려 주세요.",
     "status": "빌드 상태",
     "log": "빌드 로그",
     "logUnavailable": "로그를 확인할 수 없습니다",

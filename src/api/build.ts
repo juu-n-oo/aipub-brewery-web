@@ -105,6 +105,7 @@ export const buildApi = {
         ...(input.pushSecretRef ? { pushSecretRef: input.pushSecretRef } : {}),
         ...(input.buildContextPvc ? { buildContextPvc: input.buildContextPvc } : {}),
         ...(input.buildContextSubPath ? { buildContextSubPath: input.buildContextSubPath } : {}),
+        ...(input.buildTimeoutSeconds ? { buildTimeoutSeconds: input.buildTimeoutSeconds } : {}),
       },
     };
     const created = await k8sApi.createImageBuild(df.project, cr);
