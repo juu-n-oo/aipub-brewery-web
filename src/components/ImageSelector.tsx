@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Loader2, Check, Package } from 'lucide-react';
+import { Image, Loader2, Check, Package, RefreshCw } from 'lucide-react';
 import { useProject, useRepositories, useImageTags } from '@/hooks/useK8s';
 import { useCatalogImages, useCatalogImage } from '@/hooks/useCatalog';
 import { HARBOR_URL } from '@/lib/env';
@@ -80,8 +80,18 @@ function CatalogImageSelector({
   const { t } = useTranslation();
   const [selectedName, setSelectedName] = useState('');
 
-  const { data: images, isLoading: listLoading } = useCatalogImages();
-  const { data: detail, isLoading: detailLoading } = useCatalogImage(selectedName);
+  const {
+    data: images,
+    isLoading: listLoading,
+    isError: listError,
+    refetch: refetchList,
+  } = useCatalogImages();
+  const {
+    data: detail,
+    isLoading: detailLoading,
+    isError: detailError,
+    refetch: refetchDetail,
+  } = useCatalogImage(selectedName);
 
   const imageList = images ?? [];
   const versions = detail?.versions ?? [];
@@ -91,6 +101,9 @@ function CatalogImageSelector({
       <Column
         title={t('imageSelector.image')}
         loading={listLoading}
+        error={listError}
+        errorText={t('imageSelector.catalogError')}
+        onRetry={() => refetchList()}
         empty={!listLoading && imageList.length === 0}
         emptyText={t('imageSelector.catalogEmpty')}
       >
@@ -132,6 +145,11 @@ function CatalogImageSelector({
           ) : detailLoading ? (
             <div className="flex items-center justify-center py-10">
               <Loader2 className="h-4 w-4 text-primary animate-spin" />
+            </div>
+          ) : detailError ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-xs text-muted-foreground/70">
+              <span>{t('imageSelector.catalogError')}</span>
+              <RetryButton onClick={() => refetchDetail()} />
             </div>
           ) : (
             <>
@@ -316,6 +334,9 @@ function TabButton({
 function Column({
   title,
   loading,
+  error,
+  errorText,
+  onRetry,
   empty,
   emptyText,
   placeholder,
@@ -325,6 +346,9 @@ function Column({
 }: {
   title: string;
   loading?: boolean;
+  error?: boolean;
+  errorText?: string;
+  onRetry?: () => void;
   empty?: boolean;
   emptyText?: string;
   placeholder?: boolean;
@@ -342,6 +366,12 @@ function Column({
           <li className="flex items-center justify-center py-10">
             <Loader2 className="h-4 w-4 text-primary animate-spin" />
           </li>
+        ) : error ? (
+          // 장애 시 빈 상태("없음")와 구분해 에러 + 재시도를 노출한다.
+          <li className="flex flex-col items-center justify-center gap-2 py-10 text-xs text-muted-foreground/70">
+            <span>{errorText}</span>
+            {onRetry && <RetryButton onClick={onRetry} />}
+          </li>
         ) : placeholder ? (
           <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
             {placeholderText}
@@ -355,6 +385,20 @@ function Column({
         )}
       </ul>
     </div>
+  );
+}
+
+function RetryButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+    >
+      <RefreshCw className="h-3 w-3" />
+      {t('common.retry')}
+    </button>
   );
 }
 

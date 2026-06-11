@@ -11,6 +11,7 @@
     "search": "Search",
     "back": "Back",
     "close": "Close",
+    "retry": "Retry",
     "allProjects": "All projects",
     "rowsPerPage": "Rows per page",
     "rowsSelected": "{{selected}} of {{total}} row(s) selected",
@@ -199,7 +200,8 @@
     "catalogEmpty": "No catalog images",
     "image": "Image",
     "selectImage": "Select an image",
-    "tagCount": "{{count}} tags"
+    "tagCount": "{{count}} tags",
+    "catalogError": "Failed to load the catalog"
   },
   "nav": {
     "dockerfiles": "Dockerfiles",
