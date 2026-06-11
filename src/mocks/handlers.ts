@@ -291,86 +291,6 @@ export const handlers = [
     return HttpResponse.json({ volumeName: name, namespace: ns, path, entries });
   }),
 
-  // ── External Registry: NGC ──
-
-  http.get('/api/v1alpha1/registries/ngc/images', async ({ request }) => {
-    await delay(500);
-    const url = new URL(request.url);
-    const q = (url.searchParams.get('query') || '').toLowerCase();
-
-    const allImages = [
-      { name: 'nvidia/pytorch', fullPath: 'nvcr.io/nvidia/pytorch', description: 'NVIDIA optimized PyTorch container with CUDA, cuDNN', source: 'NGC' },
-      { name: 'nvidia/tensorflow', fullPath: 'nvcr.io/nvidia/tensorflow', description: 'NVIDIA optimized TensorFlow container', source: 'NGC' },
-      { name: 'nvidia/cuda', fullPath: 'nvcr.io/nvidia/cuda', description: 'NVIDIA CUDA base images', source: 'NGC' },
-      { name: 'nvidia/tritonserver', fullPath: 'nvcr.io/nvidia/tritonserver', description: 'NVIDIA Triton Inference Server', source: 'NGC' },
-      { name: 'nvidia/nemo', fullPath: 'nvcr.io/nvidia/nemo', description: 'NVIDIA NeMo framework for conversational AI', source: 'NGC' },
-      { name: 'nvidia/rapidsai/base', fullPath: 'nvcr.io/nvidia/rapidsai/base', description: 'RAPIDS - GPU DataFrame, ML, Graph Analytics', source: 'NGC' },
-      { name: 'nvidia/tensorrt', fullPath: 'nvcr.io/nvidia/tensorrt', description: 'NVIDIA TensorRT - high-performance deep learning inference', source: 'NGC' },
-    ];
-
-    const filtered = q ? allImages.filter((img) =>
-      img.name.toLowerCase().includes(q) || img.description.toLowerCase().includes(q)
-    ) : allImages;
-
-    return HttpResponse.json({ images: filtered, totalCount: filtered.length });
-  }),
-
-  http.get('/api/v1alpha1/registries/ngc/images/:org/:repo/tags', async ({ params }) => {
-    await delay(300);
-    const org = params.org as string;
-    const repo = params.repo as string;
-    const tagMap: Record<string, string[]> = {
-      'nvidia/pytorch': ['24.04-py3', '24.03-py3', '24.02-py3', '23.12-py3', '23.10-py3'],
-      'nvidia/tensorflow': ['24.04-tf2-py3', '24.03-tf2-py3', '23.12-tf2-py3'],
-      'nvidia/cuda': ['12.4.0-devel-ubuntu22.04', '12.3.2-devel-ubuntu22.04', '12.1.1-devel-ubuntu22.04', '11.8.0-devel-ubuntu22.04'],
-      'nvidia/tritonserver': ['24.04-py3', '24.03-py3', '23.12-py3'],
-      'nvidia/nemo': ['24.03', '24.01.01', '23.10'],
-      'nvidia/rapidsai/base': ['24.04-cuda12.2-py3.11', '24.02-cuda12.0-py3.10'],
-      'nvidia/tensorrt': ['24.04-py3', '24.03-py3', '23.12-py3'],
-    };
-    const key = `${org}/${repo}`;
-    const tags = tagMap[key] ?? [];
-    return HttpResponse.json({ image: `nvcr.io/${key}`, tags });
-  }),
-
-  // ── External Registry: HuggingFace ──
-
-  http.get('/api/v1alpha1/registries/huggingface/images', async ({ request }) => {
-    await delay(500);
-    const url = new URL(request.url);
-    const q = (url.searchParams.get('query') || '').toLowerCase();
-
-    const allImages = [
-      { name: 'text-generation-inference', fullPath: 'ghcr.io/huggingface/text-generation-inference', description: 'Hugging Face Text Generation Inference (TGI) - serve LLMs', source: 'HUGGINGFACE' },
-      { name: 'text-embeddings-inference', fullPath: 'ghcr.io/huggingface/text-embeddings-inference', description: 'Hugging Face Text Embeddings Inference (TEI)', source: 'HUGGINGFACE' },
-      { name: 'transformers-pytorch-gpu', fullPath: 'ghcr.io/huggingface/transformers-pytorch-gpu', description: 'Hugging Face Transformers with PyTorch GPU', source: 'HUGGINGFACE' },
-      { name: 'transformers-tensorflow-gpu', fullPath: 'ghcr.io/huggingface/transformers-tensorflow-gpu', description: 'Hugging Face Transformers with TensorFlow GPU', source: 'HUGGINGFACE' },
-      { name: 'diffusers-pytorch-cuda', fullPath: 'ghcr.io/huggingface/diffusers-pytorch-cuda', description: 'Hugging Face Diffusers with PyTorch + CUDA', source: 'HUGGINGFACE' },
-      { name: 'optimum-nvidia', fullPath: 'ghcr.io/huggingface/optimum-nvidia', description: 'Hugging Face Optimum NVIDIA - TensorRT-LLM acceleration', source: 'HUGGINGFACE' },
-    ];
-
-    const filtered = q ? allImages.filter((img) =>
-      img.name.toLowerCase().includes(q) || img.description.toLowerCase().includes(q)
-    ) : allImages;
-
-    return HttpResponse.json({ images: filtered, totalCount: filtered.length });
-  }),
-
-  http.get('/api/v1alpha1/registries/huggingface/images/:repo/tags', async ({ params }) => {
-    await delay(300);
-    const repo = params.repo as string;
-    const tagMap: Record<string, string[]> = {
-      'text-generation-inference': ['2.0', '1.4', '1.3', 'latest'],
-      'text-embeddings-inference': ['1.2', '1.1', 'latest'],
-      'transformers-pytorch-gpu': ['4.40.0', '4.38.0', '4.36.0', 'latest'],
-      'transformers-tensorflow-gpu': ['4.40.0', '4.38.0', 'latest'],
-      'diffusers-pytorch-cuda': ['0.27.0', '0.25.0', 'latest'],
-      'optimum-nvidia': ['latest'],
-    };
-    const tags = tagMap[repo] ?? [];
-    return HttpResponse.json({ image: `ghcr.io/huggingface/${repo}`, tags });
-  }),
-
   // ── Dockerfile CRUD ──
 
   http.get('/api/v1alpha1/dockerfiles', async ({ request }) => {
@@ -522,13 +442,13 @@ export const handlers = [
 
   // 빌드 목록/단건 조회는 k8sproxy 를 통해 ImageBuild CR 을 직접 읽는다 (buildApi.list / get).
   http.get(
-    '/api/v1alpha1/k8sproxy/apis/dockerizer.aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds',
+    '/api/v1alpha1/k8sproxy/apis/aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds',
     async ({ params }) => {
       await delay(300);
       const ns = params.ns as string;
       const items = builds.filter((b) => b.namespace === ns).map(toImageBuildCr);
       return HttpResponse.json({
-        apiVersion: 'dockerizer.aipub.ten1010.io/v1alpha1',
+        apiVersion: 'aipub.ten1010.io/v1alpha1',
         kind: 'ImageBuildList',
         items,
       });
@@ -536,7 +456,7 @@ export const handlers = [
   ),
 
   http.get(
-    '/api/v1alpha1/k8sproxy/apis/dockerizer.aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds/:name',
+    '/api/v1alpha1/k8sproxy/apis/aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds/:name',
     async ({ params }) => {
       await delay(200);
       const ns = params.ns as string;
@@ -568,7 +488,7 @@ export const handlers = [
 
   // 빌드 실행: 프론트가 k8sproxy 로 ImageBuild CR 을 직접 생성한다 (buildApi.run).
   http.post(
-    '/api/v1alpha1/k8sproxy/apis/dockerizer.aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds',
+    '/api/v1alpha1/k8sproxy/apis/aipub.ten1010.io/v1alpha1/namespaces/:ns/imagebuilds',
     async ({ params, request }) => {
     await delay(500);
     const ns = params.ns as string;
@@ -588,11 +508,11 @@ export const handlers = [
     const newBuild: ImageBuild = {
       name: buildName,
       namespace: ns,
-      dockerfileId: Number(labels['dockerizer.aipub.ten1010.io/dockerfile-id'] ?? 0),
+      dockerfileId: Number(labels['aipub.ten1010.io/dockerfile-id'] ?? 0),
       targetImage: cr.spec?.targetImage ?? '',
-      baseImage: annotations['dockerizer.aipub.ten1010.io/base-image'],
+      baseImage: annotations['aipub.ten1010.io/base-image'],
       phase: 'Pending',
-      username: labels['dockerizer.aipub.ten1010.io/username'] ?? 'joonwoo',
+      username: labels['aipub.ten1010.io/username'] ?? 'joonwoo',
       createdAt: new Date().toISOString(),
     };
     builds.unshift(newBuild);
@@ -748,13 +668,13 @@ export const handlers = [
 /** ImageBuild DTO → k8s ImageBuild CR (k8sproxy 조회 응답 형태). buildApi 의 mapCrToImageBuild 역변환. */
 function toImageBuildCr(b: ImageBuild) {
   const labels: Record<string, string> = {
-    'dockerizer.aipub.ten1010.io/dockerfile-id': String(b.dockerfileId),
-    'dockerizer.aipub.ten1010.io/username': b.username,
+    'aipub.ten1010.io/dockerfile-id': String(b.dockerfileId),
+    'aipub.ten1010.io/username': b.username,
   };
   const annotations: Record<string, string> = {};
-  if (b.baseImage) annotations['dockerizer.aipub.ten1010.io/base-image'] = b.baseImage;
+  if (b.baseImage) annotations['aipub.ten1010.io/base-image'] = b.baseImage;
   return {
-    apiVersion: 'dockerizer.aipub.ten1010.io/v1alpha1',
+    apiVersion: 'aipub.ten1010.io/v1alpha1',
     kind: 'ImageBuild',
     metadata: {
       name: b.name,

@@ -5,21 +5,21 @@ import type { ImageBuild, ImageBuildCr, RunBuildInput } from '@/types/build';
 
 const BASE = '/builds';
 
-const IMAGEBUILD_API_VERSION = 'dockerizer.aipub.ten1010.io/v1alpha1';
+const IMAGEBUILD_API_VERSION = 'aipub.ten1010.io/v1alpha1';
 const IMAGEBUILD_KIND = 'ImageBuild';
 
-const LABEL_DOCKERFILE_ID = 'dockerizer.aipub.ten1010.io/dockerfile-id';
-const LABEL_REVISION_ID = 'dockerizer.aipub.ten1010.io/dockerfile-revision-id';
-const LABEL_USERNAME = 'dockerizer.aipub.ten1010.io/username';
-const LABEL_REBUILD_OF = 'dockerizer.aipub.ten1010.io/rebuild-of';
-const ANNOTATION_BASE_IMAGE = 'dockerizer.aipub.ten1010.io/base-image';
+const LABEL_DOCKERFILE_ID = 'aipub.ten1010.io/dockerfile-id';
+const LABEL_REVISION_ID = 'aipub.ten1010.io/dockerfile-revision-id';
+const LABEL_USERNAME = 'aipub.ten1010.io/username';
+const LABEL_REBUILD_OF = 'aipub.ten1010.io/rebuild-of';
+const ANNOTATION_BASE_IMAGE = 'aipub.ten1010.io/base-image';
 
 const OCI = 'org.opencontainers.image';
 const VENDOR = 'AIPub, TEN Inc';
 
 /**
  * 이미지에 baking 할 자동 라벨 맵을 조립한다. (CR spec.imageLabels → 컨트롤러가 Kaniko --label 로 전개)
- * - provenance: 어떤 Dockerfile/리비전/누가 만든 이미지인지 식별 (dockerizer.aipub.ten1010.io/*)
+ * - provenance: 어떤 Dockerfile/리비전/누가 만든 이미지인지 식별 (aipub.ten1010.io/*)
  * - OCI 표준(org.opencontainers.image.*): 빌드 시점에 결정되는 자동 값(생성시각/제목/리비전 등)
  *
  * 사용자 입력 라벨(version/authors/licenses/url/documentation/커스텀)은 여기서 다루지 않는다.

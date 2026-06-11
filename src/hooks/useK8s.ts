@@ -42,35 +42,3 @@ export function useImageTags(imgHub: string, repo: string) {
     enabled: !!imgHub && !!repo,
   });
 }
-
-export function useNgcSearch(query: string) {
-  return useQuery({
-    queryKey: ['registry', 'ngc', 'search', query],
-    queryFn: () => k8sApi.searchNgcImages(query),
-    enabled: !!query,
-  });
-}
-
-export function useNgcTags(org: string, repository: string) {
-  return useQuery({
-    queryKey: ['registry', 'ngc', 'tags', org, repository],
-    queryFn: () => k8sApi.getNgcTags(org, repository),
-    enabled: !!org && !!repository,
-  });
-}
-
-export function useHuggingfaceSearch(query: string) {
-  return useQuery({
-    queryKey: ['registry', 'huggingface', 'search', query],
-    queryFn: () => k8sApi.searchHuggingfaceImages(query),
-    enabled: !!query,
-  });
-}
-
-export function useHuggingfaceTags(repository: string) {
-  return useQuery({
-    queryKey: ['registry', 'huggingface', 'tags', repository],
-    queryFn: () => k8sApi.getHuggingfaceTags(repository),
-    enabled: !!repository,
-  });
-}

@@ -5,12 +5,10 @@ import type {
   ImageReview,
   VolumeListResponse,
   BrowseResponse,
-  ImageSearchResponse,
-  ImageTagsResponse,
 } from '@/types/k8s';
 import type { ImageBuildCr, ImageBuildList } from '@/types/build';
 
-const IMAGEBUILD_API = '/apis/dockerizer.aipub.ten1010.io/v1alpha1';
+const IMAGEBUILD_API = '/apis/aipub.ten1010.io/v1alpha1';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const K8S_PROXY = `${API_BASE_URL}/api/v1alpha1/k8sproxy`;
@@ -159,24 +157,4 @@ export const k8sApi = {
         }),
       },
     ),
-
-  /** NGC 이미지 검색 */
-  searchNgcImages: (query: string, page = 0, pageSize = 25) =>
-    apiClient.get<ImageSearchResponse>('/registries/ngc/images', {
-      params: { query, page: String(page), pageSize: String(pageSize) },
-    }),
-
-  /** NGC 이미지 태그 조회 */
-  getNgcTags: (org: string, repository: string) =>
-    apiClient.get<ImageTagsResponse>(`/registries/ngc/images/${org}/${repository}/tags`),
-
-  /** HuggingFace 이미지 검색 */
-  searchHuggingfaceImages: (query: string, page = 0, pageSize = 25) =>
-    apiClient.get<ImageSearchResponse>('/registries/huggingface/images', {
-      params: { query, page: String(page), pageSize: String(pageSize) },
-    }),
-
-  /** HuggingFace 이미지 태그 조회 */
-  getHuggingfaceTags: (repository: string) =>
-    apiClient.get<ImageTagsResponse>(`/registries/huggingface/images/${repository}/tags`),
 };

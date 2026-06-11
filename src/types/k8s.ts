@@ -84,25 +84,6 @@ export interface BrowseResponse {
   entries: FileEntry[];
 }
 
-/* ── External Registry ── */
-
-export interface RegistryImage {
-  name: string;
-  fullPath: string;
-  description: string;
-  source: 'NGC' | 'HUGGINGFACE';
-}
-
-export interface ImageSearchResponse {
-  images: RegistryImage[];
-  totalCount: number;
-}
-
-export interface ImageTagsResponse {
-  image: string;
-  tags: string[];
-}
-
 /* ── ImageReview ── */
 
 export interface ImageReviewRepository {

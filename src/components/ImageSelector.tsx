@@ -19,11 +19,7 @@ interface ImageSelectorProps {
   onSelect: (imageRef: string) => void;
 }
 
-type RegistryTab = 'aipub' | 'catalog';
-
 export function ImageSelector({ projectId, open, onOpenChange, onSelect }: ImageSelectorProps) {
-  const [tab, setTab] = useState<RegistryTab>('aipub');
-
   const handleClose = () => {
     onOpenChange(false);
   };
@@ -38,20 +34,7 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
           </DialogTitle>
         </DialogHeader>
 
-        {/* Registry Tabs */}
-        <div className="flex border-b border-border">
-          <TabButton active={tab === 'aipub'} onClick={() => setTab('aipub')}>
-            AIPub ImageHub
-          </TabButton>
-          <TabButton active={tab === 'catalog'} onClick={() => setTab('catalog')}>
-            Image Catalog
-          </TabButton>
-        </div>
-
-        {tab === 'aipub' && (
-          <AIPubImageSelector projectId={projectId} onSelect={onSelect} onClose={handleClose} />
-        )}
-        {tab === 'catalog' && <ImageCatalogSelector />}
+        <AIPubImageSelector projectId={projectId} onSelect={onSelect} onClose={handleClose} />
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
@@ -169,50 +152,7 @@ function AIPubImageSelector({
   );
 }
 
-/* ── Image Catalog Tab ── */
-
-// AIPub 이 제공 예정인 이미지 카탈로그(Harbor 전용 프로젝트 기반, 읽기 전용 큐레이션 이미지).
-// 카탈로그 서비스 연동 전까지는 안내 placeholder 를 노출한다.
-function ImageCatalogSelector() {
-  return (
-    <div className="flex h-[320px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border px-6 text-center">
-      <Image className="h-8 w-8 text-muted-foreground/40" />
-      <div>
-        <p className="text-sm font-medium text-foreground">Image Catalog 준비 중</p>
-        <p className="mt-1 max-w-md text-xs text-muted-foreground">
-          AIPub이 제공하는 검증된 base 이미지 카탈로그입니다. 카탈로그 이미지는 수정·삭제가 불가능한
-          읽기 전용으로 제공됩니다. (출시 예정)
-        </p>
-      </div>
-    </div>
-  );
-}
-
 /* ── Shared Components ── */
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-        active
-          ? 'border-primary text-primary'
-          : 'border-transparent text-muted-foreground hover:text-foreground'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function Column({
   title,
