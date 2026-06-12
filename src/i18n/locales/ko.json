@@ -31,7 +31,6 @@
     "emptyDescription": "Dockerfile을 생성하여 이미지 빌드를 시작하세요.",
     "ownerFilter": "소유자(username)로 필터",
     "history": "히스토리",
-    "available": "Available",
     "deleteConfirm": "\"{{name}}\" Dockerfile을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
     "revisionRestore": "리비전 복원",
     "revisionRestoreConfirm": "v{{version}}의 내용으로 새 리비전을 생성합니다. 기존 이력은 보존됩니다.",

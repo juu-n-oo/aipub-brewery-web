@@ -31,7 +31,6 @@
     "emptyDescription": "Create a Dockerfile to start building images.",
     "ownerFilter": "Filter by owner (username)",
     "history": "History",
-    "available": "Available",
     "deleteConfirm": "Delete the \"{{name}}\" Dockerfile? This action cannot be undone.",
     "revisionRestore": "Restore Revision",
     "revisionRestoreConfirm": "A new revision will be created with the contents of v{{version}}. Existing history is preserved.",

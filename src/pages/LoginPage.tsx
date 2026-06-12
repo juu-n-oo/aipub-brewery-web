@@ -8,6 +8,7 @@ import { login } from '@/api/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { Logo } from '@/components/Logo';
 
 const loginSchema = z.object({
   username: z.string().min(1, '아이디를 입력해 주세요.'),
@@ -51,16 +52,7 @@ export default function LoginPage() {
         <div className="hidden flex-1 flex-col items-center justify-center px-8 lg:flex">
           {/* Logo */}
           <div className="mb-12 flex flex-col items-center">
-            <svg className="mb-6 h-32 w-32" viewBox="0 0 64 64" fill="none">
-              <circle cx="20" cy="32" r="12" fill="#FF9500" />
-              <path
-                d="M28 20c6.627 0 12 5.373 12 12s-5.373 12-12 12"
-                stroke="var(--primary)"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
-              <circle cx="44" cy="32" r="8" fill="var(--primary)" />
-            </svg>
+            <Logo className="mb-6 h-32 w-32 text-primary" />
             <span className="text-6xl font-bold tracking-tight text-foreground">Dockerizer</span>
           </div>
 

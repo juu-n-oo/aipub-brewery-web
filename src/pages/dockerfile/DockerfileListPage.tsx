@@ -87,6 +87,7 @@ export default function DockerfileListPage() {
       username: (d: Dockerfile) => d.username,
       baseImage: (d: Dockerfile) => d.baseImage,
       createdAt: (d: Dockerfile) => new Date(d.createdAt).getTime(),
+      version: (d: Dockerfile) => d.latestVersion ?? 0,
     }),
     [],
   );
@@ -234,16 +235,22 @@ export default function DockerfileListPage() {
                   />
                 </TableHead>
                 <SortableHead label="Name" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableHead label="Base Image" sortKey="baseImage" sort={sort} onSort={toggle} />
+                <SortableHead
+                  label="Version"
+                  sortKey="version"
+                  sort={sort}
+                  onSort={toggle}
+                  className="text-center"
+                />
                 <SortableHead label="Project" sortKey="project" sort={sort} onSort={toggle} />
                 <SortableHead label="Owner" sortKey="username" sort={sort} onSort={toggle} />
-                <SortableHead label="Base Image" sortKey="baseImage" sort={sort} onSort={toggle} />
                 <SortableHead
                   label="Creation Time"
                   sortKey="createdAt"
                   sort={sort}
                   onSort={toggle}
                 />
-                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -263,8 +270,6 @@ export default function DockerfileListPage() {
                       {df.name}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{df.project}</TableCell>
-                  <TableCell className="text-muted-foreground">{df.username}</TableCell>
                   <TableCell className="max-w-[240px] text-muted-foreground">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -273,14 +278,22 @@ export default function DockerfileListPage() {
                       <TooltipContent>{df.baseImage}</TooltipContent>
                     </Tooltip>
                   </TableCell>
+                  <TableCell className="text-center">
+                    {df.latestVersion != null ? (
+                      <Link
+                        to={`/dockerfiles/${df.id}/revisions`}
+                        className="font-mono text-sm font-medium text-primary hover:underline"
+                      >
+                        v{df.latestVersion}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{df.project}</TableCell>
+                  <TableCell className="text-muted-foreground">{df.username}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDateTime(df.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-green-500" />
-                      {t('dockerfile.available')}
-                    </span>
                   </TableCell>
                 </TableRow>
               ))}

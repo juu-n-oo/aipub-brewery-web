@@ -27,7 +27,7 @@ import { useTableSelection } from '@/hooks/useTableSelection';
 import { Pagination } from '@/components/ui/Pagination';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/Tooltip';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { formatRelativeAge, shortenImageRef } from '@/lib/format';
+import { formatDateTime, shortenImageRef } from '@/lib/format';
 import { phaseMeta } from '@/lib/build-phase';
 import type { ImageBuild } from '@/types/build';
 
@@ -170,10 +170,15 @@ export default function BuildListPage() {
                   sort={sort}
                   onSort={toggle}
                 />
+                <SortableHead label="Status" sortKey="phase" sort={sort} onSort={toggle} />
                 <SortableHead label="Project" sortKey="namespace" sort={sort} onSort={toggle} />
                 <SortableHead label="Owner" sortKey="username" sort={sort} onSort={toggle} />
-                <SortableHead label="Status" sortKey="phase" sort={sort} onSort={toggle} />
-                <SortableHead label="Age" sortKey="createdAt" sort={sort} onSort={toggle} />
+                <SortableHead
+                  label="Creation Time"
+                  sortKey="createdAt"
+                  sort={sort}
+                  onSort={toggle}
+                />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -201,8 +206,6 @@ export default function BuildListPage() {
                     </TableCell>
                     <ImageCell image={build.baseImage} />
                     <ImageCell image={build.targetImage} />
-                    <TableCell className="text-muted-foreground">{build.namespace}</TableCell>
-                    <TableCell className="text-muted-foreground">{build.username}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center gap-1.5 ${meta.color}`}>
                         <span
@@ -215,8 +218,10 @@ export default function BuildListPage() {
                         {t(meta.labelKey)}
                       </span>
                     </TableCell>
+                    <TableCell className="text-muted-foreground">{build.namespace}</TableCell>
+                    <TableCell className="text-muted-foreground">{build.username}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatRelativeAge(build.createdAt)}
+                      {formatDateTime(build.createdAt)}
                     </TableCell>
                   </TableRow>
                 );

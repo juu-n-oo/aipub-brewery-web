@@ -25,21 +25,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/DropdownMenu';
-
-function Logo() {
-  return (
-    <svg className="h-7 w-7" viewBox="0 0 64 64" fill="none">
-      <circle cx="20" cy="32" r="12" fill="#FF9500" />
-      <path
-        d="M28 20c6.627 0 12 5.373 12 12s-5.373 12-12 12"
-        stroke="var(--primary)"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <circle cx="44" cy="32" r="8" fill="var(--primary)" />
-    </svg>
-  );
-}
+import { Logo } from '@/components/Logo';
 
 function Breadcrumb() {
   const location = useLocation();
@@ -176,7 +162,7 @@ function InnerLayout() {
       {/* GNB Header */}
       <header className="flex h-[var(--header-height)] shrink-0 items-center justify-between border-b bg-sidebar-background px-4 z-10">
         <NavLink to="/" className="flex items-center gap-2">
-          <Logo />
+          <Logo className="h-7 w-7 text-primary" />
           <span className="text-[17px] font-bold tracking-tight text-foreground">Dockerizer</span>
         </NavLink>
         <div className="flex items-center gap-0.5">
