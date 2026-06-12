@@ -170,7 +170,6 @@ export default function BuildListPage() {
                   sort={sort}
                   onSort={toggle}
                 />
-                <SortableHead label="Status" sortKey="phase" sort={sort} onSort={toggle} />
                 <SortableHead label="Project" sortKey="namespace" sort={sort} onSort={toggle} />
                 <SortableHead label="Owner" sortKey="username" sort={sort} onSort={toggle} />
                 <SortableHead
@@ -179,6 +178,7 @@ export default function BuildListPage() {
                   sort={sort}
                   onSort={toggle}
                 />
+                <SortableHead label="Status" sortKey="phase" sort={sort} onSort={toggle} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -206,6 +206,11 @@ export default function BuildListPage() {
                     </TableCell>
                     <ImageCell image={build.baseImage} />
                     <ImageCell image={build.targetImage} />
+                    <TableCell className="text-muted-foreground">{build.namespace}</TableCell>
+                    <TableCell className="text-muted-foreground">{build.username}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDateTime(build.createdAt)}
+                    </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center gap-1.5 ${meta.color}`}>
                         <span
@@ -217,11 +222,6 @@ export default function BuildListPage() {
                         />
                         {t(meta.labelKey)}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{build.namespace}</TableCell>
-                    <TableCell className="text-muted-foreground">{build.username}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDateTime(build.createdAt)}
                     </TableCell>
                   </TableRow>
                 );
