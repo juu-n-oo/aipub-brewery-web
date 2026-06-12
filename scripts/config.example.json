@@ -8,5 +8,9 @@
 
   "harbor": {
     "url": "aipub-harbor.cluster10.idc1.ten1010.io"
+  },
+
+  "aipub": {
+    "url": "aipub.cluster10.idc1.ten1010.io"
   }
 }

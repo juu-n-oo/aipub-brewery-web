@@ -203,6 +203,9 @@ WEB_IMAGE="${IMAGE_BASE}/dockerizer-web"
 # Harbor
 HARBOR_URL=$(${YQ_COMMAND} -r '.harbor.url // "aipub-harbor.cluster7.idc1.ten1010.io"' "$CONFIG_FILE")
 
+# AIPub 플랫폼 홈 URL (사이드바 'AIPub으로 이동' 링크)
+AIPUB_URL=$(${YQ_COMMAND} -r '.aipub.url // "aipub.cluster10.idc1.ten1010.io"' "$CONFIG_FILE")
+
 BACKUP_BASE_DIR="${SCRIPT_DIR}/backups/${NAMESPACE}/$(date +%Y%m%d_%H%M%S)"
 
 #==============================================================================
@@ -222,6 +225,7 @@ log_info "=========================================="
 log_info "  Namespace:    ${NAMESPACE}"
 log_info "  Image:        ${WEB_IMAGE}:${WEB_TAG}"
 log_info "  Harbor URL:   ${HARBOR_URL}"
+log_info "  AIPub URL:    ${AIPUB_URL}"
 log_info "=========================================="
 log_info "  1. dockerizer-web (${WEB_TAG})"
 log_info "=========================================="
@@ -245,8 +249,10 @@ if [ "$BUILD_IMAGES" = true ]; then
 
     log_info "Building image: ${WEB_IMAGE_FULL}"
     log_info "  VITE_HARBOR_URL: ${HARBOR_URL}"
+    log_info "  VITE_AIPUB_URL: ${AIPUB_URL}"
     sudo docker build --platform linux/amd64 \
       --build-arg "VITE_HARBOR_URL=${HARBOR_URL}" \
+      --build-arg "VITE_AIPUB_URL=${AIPUB_URL}" \
       -t "${WEB_IMAGE_FULL}" \
       -f "${SCRIPT_DIR}/../Dockerfile" \
       "${SCRIPT_DIR}/.."

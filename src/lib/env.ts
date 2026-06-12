@@ -12,3 +12,11 @@ export const API_BASE = `${API_BASE_URL}/api/v1alpha1`;
 
 /** Harbor(ImageHub) 레지스트리 호스트. 빌드 대상/베이스 이미지 ref 조립에 사용. */
 export const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
+
+/**
+ * AIPub 플랫폼 홈 URL. 사이드바의 'AIPub으로 이동' 링크에 사용.
+ * 설정값은 HARBOR_URL 과 동일하게 scheme 없는 host 형식(`aipub.cluster10.idc1.ten1010.io`)으로 주입하고,
+ * 링크용으로 scheme 이 없으면 https:// 를 붙인다.
+ */
+const AIPUB_HOST = import.meta.env.VITE_AIPUB_URL || 'aipub.cluster10.idc1.ten1010.io';
+export const AIPUB_URL = /^https?:\/\//.test(AIPUB_HOST) ? AIPUB_HOST : `https://${AIPUB_HOST}`;

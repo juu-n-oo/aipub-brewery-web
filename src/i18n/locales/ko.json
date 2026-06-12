@@ -205,6 +205,7 @@
   "nav": {
     "dockerfiles": "Dockerfile",
     "builds": "빌드",
-    "project": "프로젝트"
+    "project": "프로젝트",
+    "aipub": "AIPub으로 이동"
   }
 }

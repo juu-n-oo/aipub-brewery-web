@@ -12,7 +12,9 @@ import {
   AlertCircle,
   LogOut,
   Check,
+  ExternalLink,
 } from 'lucide-react';
+import { AIPUB_URL } from '@/lib/env';
 import { AuthProvider, useAuth } from '@/hooks/useAuthContext';
 import { Button } from '@/components/ui/Button';
 import { Separator } from '@/components/ui/Separator';
@@ -194,6 +196,22 @@ function InnerLayout() {
               {t('nav.builds')}
             </SidebarLink>
           </nav>
+
+          {/* Footer: AIPub 플랫폼으로 이동 */}
+          <div className="mt-auto border-t border-sidebar-border p-2">
+            <a
+              href={AIPUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground transition-all hover:bg-accent"
+            >
+              <span className="shrink-0">
+                <Logo className="h-4 w-4 text-primary" />
+              </span>
+              {t('nav.aipub')}
+              <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-50" />
+            </a>
+          </div>
         </aside>
 
         {/* Main Content */}
