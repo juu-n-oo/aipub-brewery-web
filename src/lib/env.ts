@@ -20,3 +20,12 @@ export const HARBOR_URL = import.meta.env.VITE_HARBOR_URL;
  */
 const AIPUB_HOST = import.meta.env.VITE_AIPUB_URL || 'aipub.cluster10.idc1.ten1010.io';
 export const AIPUB_URL = /^https?:\/\//.test(AIPUB_HOST) ? AIPUB_HOST : `https://${AIPUB_HOST}`;
+
+/** AIPub 플랫폼 하위 경로(GNB Docs/알림/공지/프로필 링크). */
+export const AIPUB_DOCS_URL = `${AIPUB_URL}/docs`;
+export const AIPUB_NOTIFICATIONS_URL = `${AIPUB_URL}/notifications`;
+export const AIPUB_NOTICES_URL = `${AIPUB_URL}/notices`;
+export const AIPUB_PROFILE_URL = `${AIPUB_URL}/profile`;
+
+/** 앱 버전(배포 태그). 프로필 메뉴 버전 정보에 표시. */
+export const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'dev';

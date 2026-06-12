@@ -6,7 +6,8 @@ import {
   Hammer,
   Home,
   Globe,
-  User,
+  UserCircle,
+  Book,
   PanelLeftClose,
   PanelLeft,
   AlertCircle,
@@ -14,7 +15,17 @@ import {
   Check,
   ExternalLink,
 } from 'lucide-react';
-import { AIPUB_URL } from '@/lib/env';
+import {
+  AIPUB_URL,
+  AIPUB_DOCS_URL,
+  AIPUB_NOTIFICATIONS_URL,
+  AIPUB_NOTICES_URL,
+  AIPUB_PROFILE_URL,
+  APP_VERSION,
+} from '@/lib/env';
+import { BellIcon } from '@/components/icons/BellIcon';
+import { BullhornIcon } from '@/components/icons/BullhornIcon';
+import { AccountIcon } from '@/components/icons/AccountIcon';
 import { AuthProvider, useAuth } from '@/hooks/useAuthContext';
 import { Button } from '@/components/ui/Button';
 import { Separator } from '@/components/ui/Separator';
@@ -26,6 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuGroup,
 } from '@/components/ui/DropdownMenu';
 import { Logo } from '@/components/Logo';
 
@@ -110,8 +122,8 @@ function LanguageMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-muted-foreground">
-          <Globe className="h-[18px] w-[18px]" />
+        <Button variant="ghost" size="icon" className="relative size-8 text-muted-foreground">
+          <Globe className="size-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-36">
@@ -127,6 +139,7 @@ function LanguageMenu() {
 }
 
 function ProfileMenu() {
+  const { t } = useTranslation();
   const { username } = useAuth();
   const handleLogout = async () => {
     try {
@@ -139,19 +152,76 @@ function ProfileMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-muted-foreground">
-          <User className="h-[18px] w-[18px]" />
+        <Button variant="ghost" size="icon" className="relative size-8 text-muted-foreground">
+          <AccountIcon className="size-5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        {username && <DropdownMenuLabel>{username}</DropdownMenuLabel>}
+      <DropdownMenuContent align="end" className="w-56" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <span className="truncate text-sm font-medium leading-none">{username || '-'}</span>
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="h-4 w-4" />
-          Sign out
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild className="cursor-pointer">
+            <a href={AIPUB_PROFILE_URL} target="_blank" rel="noopener noreferrer">
+              <UserCircle className="mr-2 h-4 w-4" />
+              <span>{t('nav.profile.label')}</span>
+            </a>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>{t('nav.profile.logout')}</span>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <div className="flex flex-col px-2 py-1.5 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{t('nav.versionInfo')}</span>
+          {APP_VERSION}
+        </div>
+        <div className="px-2 pb-1.5 text-xs text-muted-foreground/70">©AIPub, TEN Inc</div>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function NavActions() {
+  const { t, i18n } = useTranslation();
+  const docsHref = i18n.language === 'ko' ? AIPUB_DOCS_URL : `${AIPUB_DOCS_URL}/${i18n.language}`;
+  return (
+    <div className="flex items-center gap-3">
+      {/* Docs */}
+      <Button className="gap-2 text-xs" variant="outline" size="sm" asChild>
+        <a href={docsHref} target="_blank" rel="noopener noreferrer">
+          <Book className="size-4" />
+          {t('nav.docs')}
+        </a>
+      </Button>
+
+      <Separator className="h-5" orientation="vertical" />
+
+      {/* i18n */}
+      <LanguageMenu />
+
+      {/* Notification */}
+      <Button className="relative size-8 text-muted-foreground" variant="ghost" size="icon" asChild>
+        <a href={AIPUB_NOTIFICATIONS_URL} target="_blank" rel="noopener noreferrer">
+          <BellIcon className="size-5" />
+        </a>
+      </Button>
+
+      {/* Notice */}
+      <Button className="relative size-8 text-muted-foreground" variant="ghost" size="icon" asChild>
+        <a href={AIPUB_NOTICES_URL} target="_blank" rel="noopener noreferrer">
+          <BullhornIcon className="size-5" />
+        </a>
+      </Button>
+
+      {/* Profile */}
+      <ProfileMenu />
+    </div>
   );
 }
 
@@ -167,10 +237,7 @@ function InnerLayout() {
           <Logo className="h-7 w-7 text-primary" />
           <span className="text-[17px] font-bold tracking-tight text-foreground">Dockerizer</span>
         </NavLink>
-        <div className="flex items-center gap-0.5">
-          <LanguageMenu />
-          <ProfileMenu />
-        </div>
+        <NavActions />
       </header>
 
       <div className="flex flex-1">

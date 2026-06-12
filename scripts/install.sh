@@ -250,9 +250,11 @@ if [ "$BUILD_IMAGES" = true ]; then
     log_info "Building image: ${WEB_IMAGE_FULL}"
     log_info "  VITE_HARBOR_URL: ${HARBOR_URL}"
     log_info "  VITE_AIPUB_URL: ${AIPUB_URL}"
+    log_info "  VITE_APP_VERSION: ${WEB_TAG}"
     sudo docker build --platform linux/amd64 \
       --build-arg "VITE_HARBOR_URL=${HARBOR_URL}" \
       --build-arg "VITE_AIPUB_URL=${AIPUB_URL}" \
+      --build-arg "VITE_APP_VERSION=${WEB_TAG}" \
       -t "${WEB_IMAGE_FULL}" \
       -f "${SCRIPT_DIR}/../Dockerfile" \
       "${SCRIPT_DIR}/.."

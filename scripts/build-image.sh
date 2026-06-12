@@ -14,6 +14,7 @@ PLATFORM="${PLATFORM:-linux/amd64}"
 VITE_API_BASE_URL="${VITE_API_BASE_URL:-}"
 VITE_HARBOR_URL="${VITE_HARBOR_URL:-}"
 VITE_AIPUB_URL="${VITE_AIPUB_URL:-}"
+VITE_APP_VERSION="${VITE_APP_VERSION:-${TAG}}"
 
 IMAGE="${REGISTRY}/${REPOSITORY}:${TAG}"
 
@@ -25,6 +26,7 @@ docker build \
   --build-arg "VITE_API_BASE_URL=${VITE_API_BASE_URL}" \
   --build-arg "VITE_HARBOR_URL=${VITE_HARBOR_URL}" \
   --build-arg "VITE_AIPUB_URL=${VITE_AIPUB_URL}" \
+  --build-arg "VITE_APP_VERSION=${VITE_APP_VERSION}" \
   -t "${IMAGE}" \
   -f "${PROJECT_ROOT}/Dockerfile" \
   "${PROJECT_ROOT}"

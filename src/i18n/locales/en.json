@@ -206,6 +206,12 @@
     "dockerfiles": "Dockerfiles",
     "builds": "Builds",
     "project": "Project",
-    "aipub": "Go to AIPub"
+    "aipub": "Go to AIPub",
+    "docs": "Docs",
+    "versionInfo": "AI Pub version",
+    "profile": {
+      "label": "Profile",
+      "logout": "Sign out"
+    }
   }
 }

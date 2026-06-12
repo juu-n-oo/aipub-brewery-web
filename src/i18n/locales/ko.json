@@ -206,6 +206,12 @@
     "dockerfiles": "Dockerfile",
     "builds": "빌드",
     "project": "프로젝트",
-    "aipub": "AIPub으로 이동"
+    "aipub": "AIPub으로 이동",
+    "docs": "Docs",
+    "versionInfo": "AI Pub 버전",
+    "profile": {
+      "label": "Profile",
+      "logout": "Sign out"
+    }
   }
 }
