@@ -1,51 +1,53 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FileCode2, Hammer, FolderOpen, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuthContext';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const { username, projects, isAdmin } = useAuth();
 
   return (
     <div className="mx-auto w-full max-w-5xl">
       {/* Welcome */}
       <div className="mb-8">
-        <h1 className="mb-1.5 text-2xl font-bold text-foreground">환영합니다, {username}님</h1>
-        <p className="text-base text-muted-foreground">
-          Dockerizer에서 Dockerfile을 작성하고 이미지를 빌드하세요.
-        </p>
+        <h1 className="mb-1.5 text-2xl font-bold text-foreground">
+          {t('home.welcome', { username })}
+        </h1>
+        <p className="text-base text-muted-foreground">{t('home.subtitle')}</p>
       </div>
 
       {/* Quick Actions */}
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
         <QuickActionCard
           icon={<FileCode2 className="h-5 w-5 text-primary" />}
-          title="새 Dockerfile 작성"
-          description="Dockerfile을 생성하여 이미지 빌드 환경을 구성하세요."
+          title={t('home.action.newDockerfileTitle')}
+          description={t('home.action.newDockerfileDesc')}
           to="/dockerfiles"
           action="Dockerfiles"
         />
         <QuickActionCard
           icon={<Hammer className="h-5 w-5 text-[#FF9500]" />}
-          title="빌드 현황 확인"
-          description="실행 중인 빌드의 상태와 로그를 확인하세요."
+          title={t('home.action.buildsTitle')}
+          description={t('home.action.buildsDesc')}
           to="/builds"
           action="Builds"
         />
         <QuickActionCard
           icon={<FolderOpen className="h-5 w-5 text-green-600" />}
-          title="프로젝트"
-          description={`${projects.length}개의 프로젝트에 접근 가능합니다.`}
+          title={t('home.action.projectsTitle')}
+          description={t('home.action.projectsDesc', { count: projects.length })}
           to="/dockerfiles"
-          action="프로젝트 보기"
+          action={t('home.action.projectsAction')}
         />
       </div>
 
       {/* Project Overview */}
       <Card className="gap-0 py-0">
         <div className="border-b px-5 py-4">
-          <h2 className="text-lg font-bold text-foreground">내 프로젝트</h2>
+          <h2 className="text-lg font-bold text-foreground">{t('home.myProjects')}</h2>
         </div>
         <div className="divide-y divide-border">
           {projects.map((p) => (
@@ -67,7 +69,7 @@ export default function HomePage() {
         </div>
       </Card>
 
-      {isAdmin && <p className="mt-4 text-sm text-muted-foreground/70">관리자 권한이 있습니다.</p>}
+      {isAdmin && <p className="mt-4 text-sm text-muted-foreground/70">{t('home.isAdmin')}</p>}
     </div>
   );
 }

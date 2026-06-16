@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   GitCommitHorizontal,
@@ -25,6 +26,7 @@ import {
 import { toast } from 'sonner';
 
 export default function DockerfileRevisionListPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const dockerfileId = id ? Number(id) : undefined;
   const navigate = useNavigate();
@@ -43,10 +45,10 @@ export default function DockerfileRevisionListPage() {
       { dockerfileId, version: rollbackTarget.version },
       {
         onSuccess: () => {
-          toast.success(`v${rollbackTarget.version}으로 복원되었습니다. (새 리비전 생성됨)`);
+          toast.success(t('revision.rolledBack', { version: rollbackTarget.version }));
           setRollbackTarget(null);
         },
-        onError: () => toast.error('롤백에 실패했습니다.'),
+        onError: () => toast.error(t('revision.rollbackFailed')),
       },
     );
   };
@@ -63,7 +65,7 @@ export default function DockerfileRevisionListPage() {
   if (!dockerfile || !revisions) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
-        Dockerfile을 찾을 수 없습니다.
+        {t('revision.notFound')}
       </div>
     );
   }
@@ -82,11 +84,11 @@ export default function DockerfileRevisionListPage() {
             <Badge variant="outline">{dockerfile.project}</Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            리비전 히스토리 — 총 {revisions.length}개 버전
+            {t('revision.historySubtitle', { count: revisions.length })}
           </p>
         </div>
         <Button variant="outline" asChild>
-          <Link to={`/dockerfiles/${id}/edit`}>편집</Link>
+          <Link to={`/dockerfiles/${id}/edit`}>{t('common.edit')}</Link>
         </Button>
       </div>
 
@@ -129,7 +131,9 @@ export default function DockerfileRevisionListPage() {
                       </div>
                       <p className="text-sm mt-1">
                         {rev.message || (
-                          <span className="text-muted-foreground italic">메시지 없음</span>
+                          <span className="text-muted-foreground italic">
+                            {t('dockerfile.noMessage')}
+                          </span>
                         )}
                       </p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
@@ -157,11 +161,11 @@ export default function DockerfileRevisionListPage() {
                             `/dockerfiles/${id}/revisions/${rev.version}/diff/${revisions[0].version}`,
                           )
                         }
-                        title="최신 버전과 비교"
+                        title={t('revision.compareLatest')}
                         disabled={isLatest}
                       >
                         <Eye className="h-3 w-3 mr-1" />
-                        보기
+                        {t('revision.view')}
                       </Button>
                       {prevVersion !== null && (
                         <Button
@@ -173,7 +177,7 @@ export default function DockerfileRevisionListPage() {
                               `/dockerfiles/${id}/revisions/${prevVersion}/diff/${rev.version}`,
                             )
                           }
-                          title="이전 버전과 비교"
+                          title={t('revision.comparePrev')}
                         >
                           <GitCompareArrows className="h-3 w-3 mr-1" />
                           Diff
@@ -187,7 +191,7 @@ export default function DockerfileRevisionListPage() {
                           onClick={() => setRollbackTarget({ version: rev.version })}
                         >
                           <RotateCcw className="h-3 w-3 mr-1" />
-                          복원
+                          {t('dockerfile.restore')}
                         </Button>
                       )}
                     </div>
@@ -203,18 +207,18 @@ export default function DockerfileRevisionListPage() {
       <Dialog open={!!rollbackTarget} onOpenChange={() => setRollbackTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>리비전 복원</DialogTitle>
+            <DialogTitle>{t('dockerfile.revisionRestore')}</DialogTitle>
             <DialogDescription>
-              v{rollbackTarget?.version}의 내용으로 새 리비전을 생성합니다. 기존 이력은 보존됩니다.
+              {t('dockerfile.revisionRestoreConfirm', { version: rollbackTarget?.version })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRollbackTarget(null)}>
-              취소
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleRollback} disabled={rollbackMutation.isPending}>
               <RotateCcw className="h-4 w-4 mr-1" />
-              복원
+              {t('dockerfile.restore')}
             </Button>
           </DialogFooter>
         </DialogContent>

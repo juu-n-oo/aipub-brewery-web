@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { Folder, FileText, ChevronRight, Loader2, HardDrive, Check, Upload } from 'lucide-react';
 import { useVolumes, useVolumeFiles } from '@/hooks/useK8s';
@@ -21,6 +22,7 @@ interface VolumeBrowserProps {
 }
 
 export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: VolumeBrowserProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: volumeList, isLoading: volumesLoading } = useVolumes(namespace);
   const volumes = volumeList?.items ?? [];
@@ -67,7 +69,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
       const fullPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
       setSelectedFile(fullPath);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : '업로드에 실패했습니다.');
+      setUploadError(err instanceof Error ? err.message : t('volume.uploadFailed'));
     } finally {
       setUploading(false);
       setUploadingName('');
@@ -122,7 +124,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HardDrive className="h-5 w-5 text-primary" />
-            Volume 파일 선택
+            {t('volume.title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -147,7 +149,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                 </li>
               ) : volumes.length === 0 ? (
                 <li className="flex items-center justify-center py-10 text-xs text-muted-foreground/70">
-                  Volume 없음
+                  {t('volume.empty')}
                 </li>
               ) : (
                 volumes.map((v) => (
@@ -165,7 +167,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                       <div className="min-w-0">
                         <div className="truncate text-xs font-medium">{v.name}</div>
                         <div className="text-[10px] text-muted-foreground/70">
-                          {v.capacity} (사용: {v.used})
+                          {t('volume.capacityUsed', { capacity: v.capacity, used: v.used })}
                         </div>
                       </div>
                     </div>
@@ -224,14 +226,14 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                       className="h-7 shrink-0"
                       disabled={uploading}
                       onClick={() => fileInputRef.current?.click()}
-                      title="현재 경로에 파일 업로드"
+                      title={t('volume.uploadTitle')}
                     >
                       {uploading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Upload className="h-3.5 w-3.5" />
                       )}
-                      업로드
+                      {t('volume.upload')}
                     </Button>
                   </>
                 )}
@@ -259,7 +261,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
             <div className="flex-1 overflow-auto">
               {!selectedVolume ? (
                 <div className="flex items-center justify-center h-full text-xs text-muted-foreground/70">
-                  왼쪽에서 Volume을 선택하세요
+                  {t('volume.selectPrompt')}
                 </div>
               ) : filesLoading ? (
                 <div className="flex items-center justify-center h-full">
@@ -267,20 +269,20 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                 </div>
               ) : entries.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-xs text-muted-foreground/70">
-                  빈 디렉토리입니다
+                  {t('volume.emptyDir')}
                 </div>
               ) : (
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 sticky top-0">
                     <tr className="border-b border-border">
                       <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">
-                        이름
+                        {t('volume.colName')}
                       </th>
                       <th className="text-right px-3 py-1.5 font-medium text-muted-foreground w-24">
-                        크기
+                        {t('volume.colSize')}
                       </th>
                       <th className="text-right px-3 py-1.5 font-medium text-muted-foreground w-36">
-                        수정일
+                        {t('volume.colModified')}
                       </th>
                     </tr>
                   </thead>
@@ -315,7 +317,7 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
                                   handleNavigate(entry.name);
                                 }}
                                 className="ml-auto p-0.5 rounded hover:bg-card text-muted-foreground/70 hover:text-foreground shrink-0"
-                                title="폴더 열기"
+                                title={t('volume.openFolder')}
                               >
                                 <ChevronRight className="h-4 w-4" />
                               </button>
@@ -368,11 +370,11 @@ export function VolumeBrowser({ namespace, open, onOpenChange, onSelect }: Volum
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            닫기
+            {t('common.close')}
           </Button>
           <Button onClick={handleConfirm} disabled={!selectedFile}>
             <Check className="h-4 w-4" />
-            선택
+            {t('volume.select')}
           </Button>
         </DialogFooter>
       </DialogContent>

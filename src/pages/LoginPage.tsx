@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,18 +11,23 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Logo } from '@/components/Logo';
 
-const loginSchema = z.object({
-  username: z.string().min(1, '아이디를 입력해 주세요.'),
-  password: z.string().min(1, '비밀번호를 입력해 주세요.'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+type LoginFormData = { username: string; password: string };
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const loginSchema = useMemo(
+    () =>
+      z.object({
+        username: z.string().min(1, t('login.usernamePlaceholder')),
+        password: z.string().min(1, t('login.passwordPlaceholder')),
+      }),
+    [t],
+  );
 
   const {
     register,
@@ -39,7 +45,7 @@ export default function LoginPage() {
       await login(data);
       navigate('/', { replace: true });
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : '로그인에 실패했습니다.');
+      setLoginError(err instanceof Error ? err.message : t('login.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -57,15 +63,16 @@ export default function LoginPage() {
           </div>
 
           <h2 className="mb-3 text-center text-4xl font-bold leading-snug text-foreground">
-            인공지능
-            <br />
-            <span className="text-primary">개발</span>·<span className="text-[#FF9500]">운영</span>
-            의 모든것
+            <Trans
+              i18nKey="login.tagline"
+              components={{
+                dev: <span className="text-primary" />,
+                ops: <span className="text-[#FF9500]" />,
+              }}
+            />
           </h2>
 
-          <p className="mt-6 text-base text-muted-foreground">
-            Dockerizer 사이트는 크롬 브라우저 사용을 권장합니다.
-          </p>
+          <p className="mt-6 text-base text-muted-foreground">{t('login.browserRecommend')}</p>
           <p className="mt-1.5 text-sm text-muted-foreground/70">©AIPub, TEN Inc</p>
         </div>
 
@@ -82,7 +89,7 @@ export default function LoginPage() {
                 </Label>
                 <Input
                   id="username"
-                  placeholder="아이디를 입력해 주세요."
+                  placeholder={t('login.usernamePlaceholder')}
                   autoComplete="username"
                   className="h-12 text-base px-4"
                   {...register('username')}
@@ -101,7 +108,7 @@ export default function LoginPage() {
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="비밀번호를 입력해 주세요."
+                    placeholder={t('login.passwordPlaceholder')}
                     autoComplete="current-password"
                     className="h-12 text-base px-4 pr-12"
                     {...register('password')}
@@ -128,7 +135,7 @@ export default function LoginPage() {
 
               {/* Submit */}
               <Button type="submit" className="w-full h-14 text-lg" disabled={isLoading}>
-                {isLoading ? '로그인 중...' : 'Sign in'}
+                {isLoading ? t('login.signingIn') : 'Sign in'}
               </Button>
             </form>
           </div>

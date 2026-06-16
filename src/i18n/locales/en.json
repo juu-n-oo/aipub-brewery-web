@@ -127,7 +127,13 @@
     "saveFailed": "Failed to save",
     "buildStartedButFailedTitle": "The Dockerfile was saved but the build failed to start.",
     "buildStartedButFailedDesc": "You can retry the build from the list or detail page.",
-    "buildFailed": "Failed to start build"
+    "buildFailed": "Failed to start build",
+    "validation": {
+      "nameRequired": "Enter a Dockerfile name",
+      "nameMaxLength": "Name must be 100 characters or fewer",
+      "namePattern": "Only letters, numbers, -, _, and . are allowed",
+      "descMaxLength": "Description must be 3000 characters or fewer"
+    }
   },
   "build": {
     "title": "Image Build",
@@ -203,6 +209,7 @@
     "catalogError": "Failed to load the catalog"
   },
   "nav": {
+    "home": "Home",
     "dockerfiles": "Dockerfiles",
     "builds": "Builds",
     "project": "Project",
@@ -213,5 +220,65 @@
       "label": "Profile",
       "logout": "Sign out"
     }
+  },
+  "layout": {
+    "noProjectTitle": "No projects assigned",
+    "noProjectDesc": "You don't have access to any projects. Please contact your administrator.",
+    "goHome": "Go home",
+    "toggleSidebar": "Toggle sidebar"
+  },
+  "home": {
+    "welcome": "Welcome, {{username}}",
+    "subtitle": "Write Dockerfiles and build images in Dockerizer.",
+    "myProjects": "My Projects",
+    "isAdmin": "You have administrator privileges.",
+    "action": {
+      "newDockerfileTitle": "Create a new Dockerfile",
+      "newDockerfileDesc": "Create a Dockerfile to set up your image build environment.",
+      "buildsTitle": "Check build status",
+      "buildsDesc": "Check the status and logs of running builds.",
+      "projectsTitle": "Projects",
+      "projectsDesc": "You can access {{count}} project(s).",
+      "projectsAction": "View projects"
+    }
+  },
+  "login": {
+    "tagline": "Everything for AI<br/><dev>Development</dev> · <ops>Operations</ops>",
+    "browserRecommend": "The Dockerizer site works best in the Chrome browser.",
+    "usernamePlaceholder": "Please enter your ID.",
+    "passwordPlaceholder": "Please enter your password.",
+    "signingIn": "Signing in...",
+    "failed": "Login failed."
+  },
+  "revision": {
+    "notFound": "Dockerfile not found.",
+    "historySubtitle": "Revision history — {{count}} version(s) total",
+    "rolledBack": "Restored to v{{version}}. (new revision created)",
+    "rollbackFailed": "Rollback failed.",
+    "view": "View",
+    "compareLatest": "Compare with latest",
+    "comparePrev": "Compare with previous",
+    "diff": {
+      "notFound": "Revision not found.",
+      "subtitle": "Revision comparison",
+      "before": "Before:",
+      "after": "After:",
+      "baseImageChanged": "Base Image changed"
+    }
+  },
+  "volume": {
+    "title": "Select Volume File",
+    "empty": "No volumes",
+    "capacityUsed": "{{capacity}} (used: {{used}})",
+    "uploadTitle": "Upload a file to the current path",
+    "upload": "Upload",
+    "uploadFailed": "Upload failed.",
+    "selectPrompt": "Select a Volume on the left",
+    "emptyDir": "Empty directory",
+    "colName": "Name",
+    "colSize": "Size",
+    "colModified": "Modified",
+    "openFolder": "Open folder",
+    "select": "Select"
   }
 }

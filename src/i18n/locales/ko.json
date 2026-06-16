@@ -127,7 +127,13 @@
     "saveFailed": "저장 실패",
     "buildStartedButFailedTitle": "Dockerfile 은 저장되었지만 빌드 시작에 실패했습니다.",
     "buildStartedButFailedDesc": "목록 또는 상세 화면에서 빌드를 다시 시도할 수 있습니다.",
-    "buildFailed": "빌드 시작 실패"
+    "buildFailed": "빌드 시작 실패",
+    "validation": {
+      "nameRequired": "Dockerfile 이름을 입력하세요",
+      "nameMaxLength": "이름은 100자 이내로 입력하세요",
+      "namePattern": "영문, 숫자, -, _, . 만 사용할 수 있습니다",
+      "descMaxLength": "설명은 3000자 이내로 입력하세요"
+    }
   },
   "build": {
     "title": "이미지 빌드",
@@ -203,6 +209,7 @@
     "catalogError": "카탈로그를 불러올 수 없습니다"
   },
   "nav": {
+    "home": "홈",
     "dockerfiles": "Dockerfile",
     "builds": "빌드",
     "project": "프로젝트",
@@ -213,5 +220,65 @@
       "label": "Profile",
       "logout": "Sign out"
     }
+  },
+  "layout": {
+    "noProjectTitle": "할당된 프로젝트가 없습니다",
+    "noProjectDesc": "접근 가능한 프로젝트가 없습니다. 관리자에게 문의하세요.",
+    "goHome": "홈으로 이동",
+    "toggleSidebar": "사이드바 토글"
+  },
+  "home": {
+    "welcome": "환영합니다, {{username}}님",
+    "subtitle": "Dockerizer에서 Dockerfile을 작성하고 이미지를 빌드하세요.",
+    "myProjects": "내 프로젝트",
+    "isAdmin": "관리자 권한이 있습니다.",
+    "action": {
+      "newDockerfileTitle": "새 Dockerfile 작성",
+      "newDockerfileDesc": "Dockerfile을 생성하여 이미지 빌드 환경을 구성하세요.",
+      "buildsTitle": "빌드 현황 확인",
+      "buildsDesc": "실행 중인 빌드의 상태와 로그를 확인하세요.",
+      "projectsTitle": "프로젝트",
+      "projectsDesc": "{{count}}개의 프로젝트에 접근 가능합니다.",
+      "projectsAction": "프로젝트 보기"
+    }
+  },
+  "login": {
+    "tagline": "인공지능<br/><dev>개발</dev>·<ops>운영</ops>의 모든 것",
+    "browserRecommend": "Dockerizer 사이트는 크롬 브라우저 사용을 권장합니다.",
+    "usernamePlaceholder": "아이디를 입력해 주세요.",
+    "passwordPlaceholder": "비밀번호를 입력해 주세요.",
+    "signingIn": "로그인 중...",
+    "failed": "로그인에 실패했습니다."
+  },
+  "revision": {
+    "notFound": "Dockerfile을 찾을 수 없습니다.",
+    "historySubtitle": "리비전 히스토리 — 총 {{count}}개 버전",
+    "rolledBack": "v{{version}}으로 복원되었습니다. (새 리비전 생성됨)",
+    "rollbackFailed": "롤백에 실패했습니다.",
+    "view": "보기",
+    "compareLatest": "최신 버전과 비교",
+    "comparePrev": "이전 버전과 비교",
+    "diff": {
+      "notFound": "리비전을 찾을 수 없습니다.",
+      "subtitle": "리비전 비교",
+      "before": "이전:",
+      "after": "이후:",
+      "baseImageChanged": "Base Image 변경됨"
+    }
+  },
+  "volume": {
+    "title": "Volume 파일 선택",
+    "empty": "Volume 없음",
+    "capacityUsed": "{{capacity}} (사용: {{used}})",
+    "uploadTitle": "현재 경로에 파일 업로드",
+    "upload": "업로드",
+    "uploadFailed": "업로드에 실패했습니다.",
+    "selectPrompt": "왼쪽에서 Volume을 선택하세요",
+    "emptyDir": "빈 디렉토리입니다",
+    "colName": "이름",
+    "colSize": "크기",
+    "colModified": "수정일",
+    "openFolder": "폴더 열기",
+    "select": "선택"
   }
 }

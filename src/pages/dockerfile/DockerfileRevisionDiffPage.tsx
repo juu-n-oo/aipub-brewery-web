@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { DiffEditor } from '@monaco-editor/react';
 import { ArrowLeft, GitCompareArrows, User } from 'lucide-react';
 import {
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/Select';
 
 export default function DockerfileRevisionDiffPage() {
+  const { t } = useTranslation();
   const { id, v1, v2 } = useParams<{ id: string; v1: string; v2: string }>();
   const dockerfileId = id ? Number(id) : undefined;
   const version1 = v1 ? Number(v1) : undefined;
@@ -52,7 +54,7 @@ export default function DockerfileRevisionDiffPage() {
   if (!rev1 || !rev2) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
-        리비전을 찾을 수 없습니다.
+        {t('revision.diff.notFound')}
       </div>
     );
   }
@@ -74,17 +76,19 @@ export default function DockerfileRevisionDiffPage() {
             <h1 className="text-xl font-bold">{dockerfile?.name ?? 'Dockerfile'}</h1>
             {dockerfile?.project && <Badge variant="outline">{dockerfile.project}</Badge>}
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">리비전 비교</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{t('revision.diff.subtitle')}</p>
         </div>
         <Button variant="outline" asChild>
-          <Link to={`/dockerfiles/${id}/revisions`}>히스토리</Link>
+          <Link to={`/dockerfiles/${id}/revisions`}>{t('dockerfile.history')}</Link>
         </Button>
       </div>
 
       {/* Version selectors */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">이전:</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            {t('revision.diff.before')}
+          </span>
           <Select
             value={String(version1)}
             onValueChange={(val) =>
@@ -107,7 +111,9 @@ export default function DockerfileRevisionDiffPage() {
         <span className="text-muted-foreground">→</span>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">이후:</span>
+          <span className="text-sm font-medium text-muted-foreground">
+            {t('revision.diff.after')}
+          </span>
           <Select
             value={String(version2)}
             onValueChange={(val) =>
@@ -129,7 +135,7 @@ export default function DockerfileRevisionDiffPage() {
 
         {baseImageChanged && (
           <Badge variant="outline" className="text-amber-600 border-amber-300">
-            Base Image 변경됨
+            {t('revision.diff.baseImageChanged')}
           </Badge>
         )}
       </div>

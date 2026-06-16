@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Editor, { type OnMount } from '@monaco-editor/react';
@@ -36,16 +36,7 @@ import { SaveRevisionDialog } from './editor/SaveRevisionDialog';
 
 /* ── Form Schema ── */
 
-const dockerfileSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Dockerfile 이름을 입력하세요')
-    .max(100, '이름은 100자 이내로 입력하세요')
-    .regex(/^[a-zA-Z0-9._-]+$/, '영문, 숫자, -, _, . 만 사용할 수 있습니다'),
-  description: z.string().max(3000, '설명은 3000자 이내로 입력하세요'),
-});
-
-type FormData = z.infer<typeof dockerfileSchema>;
+type FormData = { name: string; description: string };
 
 /* ── Main Component (orchestration) ── */
 
@@ -78,6 +69,19 @@ export default function DockerfileEditorPage() {
 
   const volumes = volumeList?.items ?? [];
   const imageHubs = projectData?.status?.allBoundImageHubs ?? [];
+
+  const dockerfileSchema = useMemo(
+    () =>
+      z.object({
+        name: z
+          .string()
+          .min(1, t('editor.validation.nameRequired'))
+          .max(100, t('editor.validation.nameMaxLength'))
+          .regex(/^[a-zA-Z0-9._-]+$/, t('editor.validation.namePattern')),
+        description: z.string().max(3000, t('editor.validation.descMaxLength')),
+      }),
+    [t],
+  );
 
   const {
     register,

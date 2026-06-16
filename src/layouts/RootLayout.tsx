@@ -42,14 +42,15 @@ import {
 import { Logo } from '@/components/Logo';
 
 function Breadcrumb() {
+  const { t } = useTranslation();
   const location = useLocation();
   const segments = location.pathname.split('/').filter(Boolean);
 
   const labels: Record<string, string> = {
-    dockerfiles: 'Dockerfiles',
-    builds: 'Builds',
-    new: 'Create',
-    edit: 'Edit',
+    dockerfiles: t('nav.dockerfiles'),
+    builds: t('nav.builds'),
+    new: t('common.create'),
+    edit: t('common.edit'),
   };
 
   return (
@@ -81,6 +82,7 @@ function Breadcrumb() {
 }
 
 function NoProjectGuard({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { projects, isAdmin, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -91,7 +93,7 @@ function NoProjectGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-sm text-muted-foreground">로딩 중...</p>
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
     );
   }
@@ -101,11 +103,9 @@ function NoProjectGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <AlertCircle className="mb-4 h-12 w-12 text-warning" />
-        <h2 className="mb-2 text-lg font-bold text-foreground">할당된 프로젝트가 없습니다</h2>
-        <p className="mb-6 text-sm text-muted-foreground">
-          접근 가능한 프로젝트가 없습니다. 관리자에게 문의하세요.
-        </p>
-        <Button onClick={() => navigate('/')}>홈으로 이동</Button>
+        <h2 className="mb-2 text-lg font-bold text-foreground">{t('layout.noProjectTitle')}</h2>
+        <p className="mb-6 text-sm text-muted-foreground">{t('layout.noProjectDesc')}</p>
+        <Button onClick={() => navigate('/')}>{t('layout.goHome')}</Button>
       </div>
     );
   }
@@ -254,7 +254,7 @@ function InnerLayout() {
           </div>
           <nav className="mb-6 flex flex-col gap-0.5 px-2">
             <SidebarLink to="/" icon={<Home className="h-4 w-4" />} end>
-              홈
+              {t('nav.home')}
             </SidebarLink>
             <SidebarLink to="/dockerfiles" icon={<FileCode2 className="h-4 w-4" />}>
               {t('nav.dockerfiles')}
@@ -297,7 +297,7 @@ function InnerLayout() {
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>사이드바 토글</TooltipContent>
+              <TooltipContent>{t('layout.toggleSidebar')}</TooltipContent>
             </Tooltip>
             <Separator orientation="vertical" className="mx-1 h-4" />
             <Breadcrumb />
