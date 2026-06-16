@@ -17,7 +17,7 @@ export const badgeVariants = cva(
         outline: 'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         green: 'border-transparent bg-green-500 text-white [a&]:hover:bg-green-500/90',
         warning: 'border-transparent bg-orange-500 text-white [a&]:hover:bg-orange-500/90',
-        /* dockerizer 호환 별칭 */
+        /* imagekit 호환 별칭 */
         success: 'border-transparent bg-green-500 text-white [a&]:hover:bg-green-500/90',
         count: 'border-transparent bg-primary/10 text-primary font-semibold',
       },

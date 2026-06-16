@@ -1,6 +1,6 @@
 apiVersion: v2
-name: dockerizer-web
-description: Dockerizer web frontend
+name: imagekit-web
+description: ImageKit web frontend
 type: application
 version: 0.1.0
 appVersion: "0.1.0"

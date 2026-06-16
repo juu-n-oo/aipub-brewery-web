@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "dockerizer-web.fullname" . }}
+  name: {{ include "imagekit-web.fullname" . }}
   labels:
-    {{- include "dockerizer-web.labels" . | nindent 4 }}
+    {{- include "imagekit-web.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "dockerizer-web.selectorLabels" . | nindent 6 }}
+      {{- include "imagekit-web.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "dockerizer-web.selectorLabels" . | nindent 8 }}
+        {{- include "imagekit-web.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

@@ -59,7 +59,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="mb-12 flex flex-col items-center">
             <Logo className="mb-6 h-32 w-32 text-primary" />
-            <span className="text-6xl font-bold tracking-tight text-foreground">Dockerizer</span>
+            <span className="text-6xl font-bold tracking-tight text-foreground">ImageKit</span>
           </div>
 
           <h2 className="mb-3 text-center text-4xl font-bold leading-snug text-foreground">

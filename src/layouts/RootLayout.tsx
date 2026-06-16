@@ -235,7 +235,7 @@ function InnerLayout() {
       <header className="flex h-[var(--header-height)] shrink-0 items-center justify-between border-b bg-sidebar-background px-4 z-10">
         <NavLink to="/" className="flex items-center gap-2">
           <Logo className="h-7 w-7 text-primary" />
-          <span className="text-[17px] font-bold tracking-tight text-foreground">Dockerizer</span>
+          <span className="text-[17px] font-bold tracking-tight text-foreground">ImageKit</span>
         </NavLink>
         <NavActions />
       </header>
@@ -249,7 +249,7 @@ function InnerLayout() {
         >
           <div className="mb-2 px-4">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Dockerizer
+              ImageKit
             </span>
           </div>
           <nav className="mb-6 flex flex-col gap-0.5 px-2">

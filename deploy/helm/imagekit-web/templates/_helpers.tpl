@@ -1,8 +1,8 @@
-{{- define "dockerizer-web.name" -}}
+{{- define "imagekit-web.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "dockerizer-web.fullname" -}}
+{{- define "imagekit-web.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -15,13 +15,13 @@
 {{- end }}
 {{- end }}
 
-{{- define "dockerizer-web.labels" -}}
+{{- define "imagekit-web.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-{{ include "dockerizer-web.selectorLabels" . }}
+{{ include "imagekit-web.selectorLabels" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{- define "dockerizer-web.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "dockerizer-web.name" . }}
+{{- define "imagekit-web.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "imagekit-web.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

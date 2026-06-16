@@ -229,7 +229,7 @@
   },
   "home": {
     "welcome": "환영합니다, {{username}}님",
-    "subtitle": "Dockerizer에서 Dockerfile을 작성하고 이미지를 빌드하세요.",
+    "subtitle": "ImageKit에서 Dockerfile을 작성하고 이미지를 빌드하세요.",
     "myProjects": "내 프로젝트",
     "isAdmin": "관리자 권한이 있습니다.",
     "action": {
@@ -244,7 +244,7 @@
   },
   "login": {
     "tagline": "인공지능<br/><dev>개발</dev>·<ops>운영</ops>의 모든 것",
-    "browserRecommend": "Dockerizer 사이트는 크롬 브라우저 사용을 권장합니다.",
+    "browserRecommend": "ImageKit 사이트는 크롬 브라우저 사용을 권장합니다.",
     "usernamePlaceholder": "아이디를 입력해 주세요.",
     "passwordPlaceholder": "비밀번호를 입력해 주세요.",
     "signingIn": "로그인 중...",

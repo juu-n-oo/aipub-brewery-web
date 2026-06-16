@@ -1,7 +1,7 @@
 # AIPub Kubernetes 연동 시스템
 
 > 작성일: 2026-04-18
-> 프로젝트: dockerizer-web
+> 프로젝트: imagekit-web
 > 목적: 프론트엔드에서 활용하는 K8s API 프록시 및 주요 CR 정리
 
 ---

@@ -3,8 +3,8 @@
 set -e  # Exit on error
 
 #==============================================================================
-# Dockerizer Web Install Script
-# Helm 차트를 사용하여 dockerizer-web 프론트엔드를 배포한다.
+# ImageKit Web Install Script
+# Helm 차트를 사용하여 imagekit-web 프론트엔드를 배포한다.
 # 사용법: sudo ./install.sh --config config.json [--skip-confirmation]
 #==============================================================================
 
@@ -198,7 +198,7 @@ NAMESPACE=$(${YQ_COMMAND} -r '.namespace' "$CONFIG_FILE")
 IMAGE_BASE=$(${YQ_COMMAND} -r '.version.image_base' "$CONFIG_FILE")
 WEB_TAG=$(${YQ_COMMAND} -r '.version.tag' "$CONFIG_FILE")
 
-WEB_IMAGE="${IMAGE_BASE}/dockerizer-web"
+WEB_IMAGE="${IMAGE_BASE}/imagekit-web"
 
 # Harbor
 HARBOR_URL=$(${YQ_COMMAND} -r '.harbor.url // "aipub-harbor.cluster7.idc1.ten1010.io"' "$CONFIG_FILE")
@@ -227,7 +227,7 @@ log_info "  Image:        ${WEB_IMAGE}:${WEB_TAG}"
 log_info "  Harbor URL:   ${HARBOR_URL}"
 log_info "  AIPub URL:    ${AIPUB_URL}"
 log_info "=========================================="
-log_info "  1. dockerizer-web (${WEB_TAG})"
+log_info "  1. imagekit-web (${WEB_TAG})"
 log_info "=========================================="
 log_info ""
 
@@ -265,11 +265,11 @@ if [ "$BUILD_IMAGES" = true ]; then
 fi
 
 #==============================================================================
-# Deploy: dockerizer-web
+# Deploy: imagekit-web
 #==============================================================================
-log_step "Deploying dockerizer-web"
+log_step "Deploying imagekit-web"
 
-deploy_helm_chart "dockerizer-web" \
+deploy_helm_chart "imagekit-web" \
   --set image.repository="${WEB_IMAGE}" \
   --set image.tag="${WEB_TAG}"
 
@@ -277,4 +277,4 @@ deploy_helm_chart "dockerizer-web" \
 # Completion
 #==============================================================================
 log_step "Installation Complete"
-log_success "dockerizer-web has been deployed to namespace '${NAMESPACE}'"
+log_success "imagekit-web has been deployed to namespace '${NAMESPACE}'"

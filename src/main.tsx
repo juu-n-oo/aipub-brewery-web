@@ -8,7 +8,7 @@ async function bootstrap() {
     const { worker } = await import('./mocks/browser');
     await worker.start({
       onUnhandledRequest: 'bypass',
-      serviceWorker: { url: '/dockerizer/mockServiceWorker.js' },
+      serviceWorker: { url: '/imagekit/mockServiceWorker.js' },
     });
   }
 

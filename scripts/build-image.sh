@@ -6,7 +6,7 @@ PROJECT_ROOT="${SCRIPT_DIR}/.."
 
 # ---- Defaults ----
 REGISTRY="${REGISTRY:-aipub-harbor.cluster7.idc1.ten1010.io}"
-REPOSITORY="${REPOSITORY:-aipub/dockerizer-web}"
+REPOSITORY="${REPOSITORY:-aipub/imagekit-web}"
 TAG="${TAG:-$(cd "${PROJECT_ROOT}" && git describe --tags --always --dirty 2>/dev/null || echo "dev")}"
 PLATFORM="${PLATFORM:-linux/amd64}"
 

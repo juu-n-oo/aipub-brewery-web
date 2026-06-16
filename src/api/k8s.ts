@@ -48,7 +48,7 @@ export const k8sApi = {
 
   /**
    * Volume 파일 업로드 (Backend API).
-   * k8sproxy 는 exec(WebSocket) 업그레이드를 지원하지 않으므로 dockerizer 백엔드를 경유한다.
+   * k8sproxy 는 exec(WebSocket) 업그레이드를 지원하지 않으므로 imagekit 백엔드를 경유한다.
    * 진행률 표시를 위해 fetch 대신 XHR(upload.onprogress)을 사용한다.
    * @param onProgress 0~1 사이의 진행률 콜백 (브라우저→백엔드 전송 기준)
    */
