@@ -875,7 +875,6 @@ export default function DockerfileEditorPage() {
 
       {/* Image Selector */}
       <ImageSelector
-        projectId={selectedProjectId}
         open={showImageSelector}
         onOpenChange={setShowImageSelector}
         onSelect={(imageRef) => {

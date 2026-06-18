@@ -194,6 +194,7 @@
     "title": "Select Base Image",
     "imageHub": "ImageHub",
     "imageHubEmpty": "No ImageHub",
+    "imageHubError": "Failed to load ImageHubs",
     "repository": "Repository",
     "repositoryEmpty": "No repositories",
     "selectImageHub": "Select an ImageHub",

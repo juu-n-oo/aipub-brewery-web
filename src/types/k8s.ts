@@ -45,15 +45,27 @@ export interface Project {
   };
 }
 
-/* ── ImageHub ── */
+/* ── AipubUser (k8s CR, cluster-scoped) ── */
 
-export interface ImageHub {
+export interface AipubUser {
   metadata: { name: string };
   spec: { id: string };
   status: {
+    allBoundImageHubs: string[];
     allBoundProjects: string[];
-    allBoundAipubUsers: string[];
   };
+}
+
+/* ── ImageHub (aipub backend REST: GET /api/v1alpha1/imagehubs) ── */
+
+/** aipub backend 가 반환하는 ImageHub 목록 항목(평탄 배열). 토큰 role 로 접근 가능 항목만 응답된다. */
+export interface ImageHubListItem {
+  id: string;
+  name: string;
+  public: boolean;
+  repoCount: number;
+  createdTimestamp: number;
+  updatedTimestamp: number;
 }
 
 /* ── Volume (Backend API) ── */

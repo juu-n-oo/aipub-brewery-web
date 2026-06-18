@@ -137,6 +137,53 @@ export const handlers = [
     });
   }),
 
+  // ── K8s Proxy: AipubUser (로그인 유저에 바인딩된 ImageHub) ──
+
+  http.get(
+    '/api/v1alpha1/k8sproxy/apis/project.aipub.ten1010.io/v1alpha1/aipubusers/:name',
+    async ({ params }) => {
+      await delay(150);
+      const name = params.name as string;
+      return HttpResponse.json({
+        apiVersion: 'project.aipub.ten1010.io/v1alpha1',
+        kind: 'AipubUser',
+        metadata: { name },
+        spec: { id: name },
+        status: {
+          allBoundImageHubs: ['common', 'pjw-image-hub'],
+          allBoundProjects: ['pjw', 'ml-team'],
+        },
+      });
+    },
+  ),
+
+  // ── ImageHub 목록 (aipub backend, 토큰 role 기반 필터링) ──
+
+  http.get('/api/v1alpha1/imagehubs', async ({ request }) => {
+    await delay(200);
+    // 평탄 배열 응답. pageOffset > 0 이면 다음 페이지 없음을 흉내 내 빈 배열을 준다.
+    const pageOffset = Number(new URL(request.url).searchParams.get('pageOffset') ?? '0');
+    if (pageOffset > 0) return HttpResponse.json([]);
+    return HttpResponse.json([
+      {
+        id: '2',
+        name: 'common',
+        public: true,
+        repoCount: 5,
+        createdTimestamp: 1778234132245,
+        updatedTimestamp: 1778234132245,
+      },
+      {
+        id: '40',
+        name: 'ml-images',
+        public: false,
+        repoCount: 3,
+        createdTimestamp: 1779000000000,
+        updatedTimestamp: 1779000000000,
+      },
+    ]);
+  }),
+
   // ── K8s Proxy: ImageReview ──
 
   http.post('/api/v1alpha1/k8sproxy/apis/project.aipub.ten1010.io/v1alpha1/imagereviews', async ({ request }) => {

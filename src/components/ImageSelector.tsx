@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, Loader2, Check, RefreshCw } from 'lucide-react';
 import catalogIcon from '@/assets/imagecatalog.png';
-import { useProject, useRepositories, useImageTags } from '@/hooks/useK8s';
+import { useAvailableImageHubs, useRepositories, useImageTags } from '@/hooks/useK8s';
+import { useAuth } from '@/hooks/useAuthContext';
 import { useCatalogImages, useCatalogImage } from '@/hooks/useCatalog';
 import { HARBOR_URL } from '@/lib/env';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +16,6 @@ import {
 } from '@/components/ui/Dialog';
 
 interface ImageSelectorProps {
-  projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (imageRef: string) => void;
@@ -23,7 +23,7 @@ interface ImageSelectorProps {
 
 type Tab = 'catalog' | 'imagehub';
 
-export function ImageSelector({ projectId, open, onOpenChange, onSelect }: ImageSelectorProps) {
+export function ImageSelector({ open, onOpenChange, onSelect }: ImageSelectorProps) {
   const { t } = useTranslation();
   // 기본 탭은 Image Catalog (큐레이션 이미지 우선 노출).
   const [tab, setTab] = useState<Tab>('catalog');
@@ -56,7 +56,7 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
         {tab === 'catalog' ? (
           <CatalogImageSelector onSelect={onSelect} onClose={handleClose} />
         ) : (
-          <AIPubImageSelector projectId={projectId} onSelect={onSelect} onClose={handleClose} />
+          <AIPubImageSelector onSelect={onSelect} onClose={handleClose} />
         )}
 
         <DialogFooter>
@@ -200,23 +200,27 @@ function CatalogImageSelector({
 /* ── AIPub ImageHub Tab ── */
 
 function AIPubImageSelector({
-  projectId,
   onSelect,
   onClose,
 }: {
-  projectId: string;
   onSelect: (ref: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const { username } = useAuth();
   const [selectedHub, setSelectedHub] = useState('');
   const [selectedRepo, setSelectedRepo] = useState('');
 
-  const { data: project, isLoading: projectLoading } = useProject(projectId);
+  // 로그인 유저 기준 접근 가능한 ImageHub 합집합(AipubUser CR + aipub backend). 관리자는 전체가 응답된다.
+  const {
+    imageHubs,
+    isLoading: hubsLoading,
+    isError: hubsError,
+    refetch: refetchHubs,
+  } = useAvailableImageHubs(username);
   const { data: repoReview, isLoading: repoLoading } = useRepositories(selectedHub);
   const { data: tagReview, isLoading: tagLoading } = useImageTags(selectedHub, selectedRepo);
 
-  const imageHubs = project?.spec.binding.imageHubs ?? [];
   const repos = repoReview?.status.repositories ?? [];
   const allTags = (tagReview?.status.artifacts ?? []).flatMap((a) =>
     a.tags.map((tag) => ({ tag, digest: a.digest })),
@@ -238,8 +242,11 @@ function AIPubImageSelector({
       <div className="flex border border-border rounded-lg overflow-hidden h-[320px]">
         <Column
           title={t('imageSelector.imageHub')}
-          loading={projectLoading}
-          empty={imageHubs.length === 0}
+          loading={hubsLoading}
+          error={hubsError}
+          errorText={t('imageSelector.imageHubError')}
+          onRetry={() => refetchHubs()}
+          empty={!hubsLoading && imageHubs.length === 0}
           emptyText={t('imageSelector.imageHubEmpty')}
         >
           {imageHubs.map((hub) => (
