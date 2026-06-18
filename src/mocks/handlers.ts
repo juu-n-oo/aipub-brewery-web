@@ -296,22 +296,23 @@ export const handlers = [
   http.get('/api/v1alpha1/dockerfiles', async ({ request }) => {
     await delay(300);
     const url = new URL(request.url);
-    const all = url.searchParams.get('all') === 'true';
     const username = url.searchParams.get('username');
     const projectsParam = url.searchParams.get('projects');
     // 토큰 기반 호출자 — 목에서는 selfsubjectreview 와 동일한 사용자로 가정
     const caller = 'joonwoo';
 
+    // 실제 백엔드는 토큰 roles 로 관리자 여부를 판별하지만, 목에서는 토큰을 읽을 수 없으므로
+    // 프론트가 보내는 파라미터 형태로 경로를 흉내 낸다(멤버는 projects 를, 관리자는 미전송/username 만 전송).
     let filtered;
-    if (all) {
-      // 관리자 전체 조회 (+ username 필터), 생성 일시 최신순
-      filtered = username ? dockerfiles.filter((df) => df.username === username) : [...dockerfiles];
-    } else {
+    if (projectsParam !== null) {
       // 멤버 조회: projects IN + 호출자 본인 username
       const projects = projectsParam ? projectsParam.split(',').filter(Boolean) : [];
       filtered = dockerfiles.filter(
         (df) => projects.includes(df.project) && df.username === caller,
       );
+    } else {
+      // 관리자 전체 조회 (+ username 필터), 생성 일시 최신순
+      filtered = username ? dockerfiles.filter((df) => df.username === username) : [...dockerfiles];
     }
     filtered = filtered.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -466,25 +467,6 @@ export const handlers = [
       return HttpResponse.json(toImageBuildCr(build));
     },
   ),
-
-  http.get('/api/v1alpha1/builds', async ({ request }) => {
-    await delay(300);
-    const url = new URL(request.url);
-    const project = url.searchParams.get('project');
-    const filtered = project ? builds.filter((b) => b.namespace === project) : builds;
-    return HttpResponse.json(filtered);
-  }),
-
-  http.get('/api/v1alpha1/builds/:ns/:name', async ({ params }) => {
-    await delay(200);
-    const ns = params.ns as string;
-    const name = params.name as string;
-    // "logs" 경로와 충돌 방지
-    if (name === 'logs') return new HttpResponse(null, { status: 404 });
-    const build = builds.find((b) => b.namespace === ns && b.name === name);
-    if (!build) return new HttpResponse(null, { status: 404 });
-    return HttpResponse.json(build);
-  }),
 
   // 빌드 실행: 프론트가 k8sproxy 로 ImageBuild CR 을 직접 생성한다 (buildApi.run).
   http.post(

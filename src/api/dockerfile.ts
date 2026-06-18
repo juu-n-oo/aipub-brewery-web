@@ -13,10 +13,10 @@ export const dockerfileApi = {
   list: (projects: string[]) =>
     apiClient.get<Dockerfile[]>(BASE, { params: { projects: projects.join(',') } }),
 
-  /** 관리자 전체 조회: all=true. username 으로 추가 필터링 가능. 비관리자가 호출하면 백엔드가 403 을 반환한다. */
+  /** 관리자 전체 조회. username 으로 특정 사용자 소유만 필터링할 수 있다. 관리자 여부는 백엔드가 토큰 roles 로 판별한다. */
   listAll: (username?: string) =>
     apiClient.get<Dockerfile[]>(BASE, {
-      params: username ? { all: 'true', username } : { all: 'true' },
+      params: username ? { username } : undefined,
     }),
 
   get: (id: number) => apiClient.get<Dockerfile>(`${BASE}/${id}`),

@@ -6,8 +6,8 @@ const QUERY_KEY = 'dockerfiles';
 const REVISION_KEY = 'dockerfile-revisions';
 
 /**
- * Dockerfile 목록 조회. 권한에 따라 분기한다.
- * - 관리자(isAdmin): 전체 조회(all=true). owner 로 username 필터링 가능. 백엔드가 최신순 정렬.
+ * Dockerfile 목록 조회. 권한에 따라 보낼 파라미터를 분기하되, 실제 관리자 여부는 백엔드가 토큰 roles 로 판별한다.
+ * - 관리자(isAdmin): 전체 조회. owner 로 username 필터링 가능. 백엔드가 최신순 정렬.
  * - 멤버: 바인딩된 프로젝트 목록을 전달하면 백엔드가 본인 소유로 제한해 반환한다.
  */
 export function useDockerfileList(params: {
