@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Loader2, Check, Package, RefreshCw } from 'lucide-react';
+import { Image, Loader2, Check, RefreshCw } from 'lucide-react';
+import catalogIcon from '@/assets/imagecatalog.png';
 import { useProject, useRepositories, useImageTags } from '@/hooks/useK8s';
 import { useCatalogImages, useCatalogImage } from '@/hooks/useCatalog';
 import { HARBOR_URL } from '@/lib/env';
@@ -43,7 +44,7 @@ export function ImageSelector({ projectId, open, onOpenChange, onSelect }: Image
 
         <div className="flex gap-1 border-b border-border">
           <TabButton active={tab === 'catalog'} onClick={() => setTab('catalog')}>
-            <Package className="h-4 w-4" />
+            <img src={catalogIcon} alt="" className="h-4 w-4 object-contain" />
             {t('imageSelector.catalog')}
           </TabButton>
           <TabButton active={tab === 'imagehub'} onClick={() => setTab('imagehub')}>

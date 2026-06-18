@@ -40,6 +40,7 @@ import {
   DropdownMenuGroup,
 } from '@/components/ui/DropdownMenu';
 import { Logo } from '@/components/Logo';
+import { BrandLogo } from '@/components/BrandLogo';
 
 function Breadcrumb() {
   const { t } = useTranslation();
@@ -234,7 +235,7 @@ function InnerLayout() {
       {/* GNB Header */}
       <header className="flex h-[var(--header-height)] shrink-0 items-center justify-between border-b bg-sidebar-background px-4 z-10">
         <NavLink to="/" className="flex items-center gap-2">
-          <Logo className="h-7 w-7 text-primary" />
+          <BrandLogo className="h-7 w-7" />
           <span className="text-[17px] font-bold tracking-tight text-foreground">ImageKit</span>
         </NavLink>
         <NavActions />

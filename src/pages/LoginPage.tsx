@@ -9,7 +9,7 @@ import { login } from '@/api/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Logo } from '@/components/Logo';
+import { BrandLogo } from '@/components/BrandLogo';
 
 type LoginFormData = { username: string; password: string };
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
         <div className="hidden flex-1 flex-col items-center justify-center px-8 lg:flex">
           {/* Logo */}
           <div className="mb-12 flex flex-col items-center">
-            <Logo className="mb-6 h-32 w-32 text-primary" />
+            <BrandLogo className="mb-6 h-32 w-32" />
             <span className="text-6xl font-bold tracking-tight text-foreground">ImageKit</span>
           </div>
 
